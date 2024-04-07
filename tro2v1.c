@@ -17,7 +17,7 @@ void extern StopPlayer();
 
 /*void extern runGame();*/
 
-/*#define USE_TIMER*/
+#define USE_TIMER
 
 #ifdef USE_TIMER
 void extern ZTimerOn();
@@ -40,8 +40,10 @@ word *my_clock=(word *)0x0000046C;
 #define INPUT_STATUS 0x03da
 #define VRETRACE 0x08
 #define NUM_COLORS 256
-#define TEXT_PALETTE_SIZE 90
-#define TEXT_PALETTE_COLORS 270
+/*#define TEXT_PALETTE_SIZE 90*/
+/*#define TEXT_PALETTE_COLORS 270*/
+#define TEXT_PALETTE_SIZE 64
+#define TEXT_PALETTE_COLORS 192
 
 #define SC_INDEX            0x03c4    /* VGA sequence controller */
 #define SC_DATA             0x03c5
@@ -89,14 +91,16 @@ word *my_clock=(word *)0x0000046C;
 #define NUM_STARS 69
 /*#define NUM_STARS 1*/
 #define STAR_SPEED 1
-#define LETTER_SCROLL_SPEED 3
+#define BITMAP_WIDTH 1376
+#define BITMAP_HEIGHT 30
+#define LETTER_SCROLL_SPEED 2
 #define LETTER_WIDTH 32
 #define LETTER_HEIGHT 30
-#define LETTER_SPACE 2000
+#define LETTER_SPACE 1344
 #define LETTER_PADDING 4
-#define TEXT_Y_OFFSET 78
+#define TEXT_Y_OFFSET 5
 /*#define WIGGLE 10*/
-#define WIGGLE 20
+#define WIGGLE 80
 
 typedef struct             /* the structure for a bitmap. */
 {
@@ -122,13 +126,13 @@ typedef struct
 } STAR;
 
 /*char text[] =   "                 NOSTALGIA PROUDLY PRESENTZ: SIMCITY V1.07 +1 BY MAXIS!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 TWINBEARD BRACKEEN AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";*/
-/*char text[] =   "NOSTALGIA PROUDLY PRESENTZ: SIMCITY V1.07 +1 BY MAXIS!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 TWINBEARD BRACKEEN AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";*/
+char text[] =   "NOSTALGIA PROUDLY PRESENTZ: SIMCITY V1.07 +1 BY MAXIS!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 TWINBEARD BRACKEEN AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";
 /*char text[] = "         ABCDEFGHIJKLMNOPQRSTUVWXYZ";*/
 /*char text[] = " BRBRBRBRBRBR HERE COMES THE CHINESE EARTHQUAKE";*/
 /*char text[] = "1 2 3 4 5 6 7 8 9 0";*/
 /*char text[] = "ACAB ACAB ACAB ACAB ACAB ACAB";*/
 /*char text[] = "ACAB ACAB";*/
-char text[] = "ACAB";
+/*char text[] = "ACAB";*/
 
 static byte global_sin_index = 0;
 
@@ -253,8 +257,8 @@ void set_palette() {
     outp(PALETTE_COLORS, 0); /* G */
     outp(PALETTE_COLORS, 0); /* B */
 
-    /* Rainbow palette (index 1-90) */
-    for (angle = 0, i = 0; i < TEXT_PALETTE_SIZE; i++,angle += 4) {
+    /* Rainbow palette (index 1-64) */
+    for (angle = 0, i = 0; i < TEXT_PALETTE_SIZE; i++,angle += 5) {
         if (angle<60) {red = 255; green = ceil(angle*4.25-0.01); blue = 0;} else
         if (angle<120) {red = ceil((120-angle)*4.25-0.01); green = 255; blue = 0;} else
         if (angle<180) {red = 0, green = 255; blue = ceil((angle-120)*4.25-0.01);} else
@@ -267,8 +271,8 @@ void set_palette() {
         outp(PALETTE_COLORS, blue >> 2); /* B */
     }
 
-    /* More black (index 90-127)  */
-    for (i = 0; i < 37; ++i) {
+    /* More black (index 64-127)  */
+    for (i = 0; i < 63; ++i) {
         outp(PALETTE_COLORS, 0);
         outp(PALETTE_COLORS, 0);
         outp(PALETTE_COLORS, 0);
@@ -285,13 +289,16 @@ void set_palette() {
     }
 }
 
-void calculate_sintable(byte *table, int table_size)
+void calculate_sintable(short *table, int table_size)
 {
     int i;
     for (i = 0; i < table_size; ++i) {
         /*table[i] = TEXT_Y_OFFSET + WIGGLE * sin((float) ((PI / 256) * i) * 8);*/
-        table[i] = TEXT_Y_OFFSET + WIGGLE * sin((float) ((PI / 512) * i) * 4);
         /*table[i] = TEXT_Y_OFFSET + WIGGLE * sin((float) ((PI / 512) * i) * 8);*/
+
+        /*table[i] = TEXT_Y_OFFSET + WIGGLE * sin((float) ((PI / 512) * i) * 4);*/
+        table[i] = TEXT_Y_OFFSET + WIGGLE * (1 + (sin(((PI / 512) * i) * 4)) / 1);
+        table[i] = ((table[i]) << 6) +  ((table[i]) << 4);
     }
 }
 
@@ -310,16 +317,17 @@ void flip_pages(word *visible_page, word *non_visible_page) {
     *non_visible_page = temp;
 }
 
-void mainloop(BITMAP *bmp, byte *sintable) {
+void mainloop(BITMAP bmp, short *sintable) {
     short x, y;
     short start_x;
     short rx;
-    byte i = 0, j = 0, ri = 0;
+    short r_from, r_to;
+    short i;
+    byte j = 0, ri = 0;
     byte plane = 0;
     short ci = 0;
     short color_cycle = 0;
     short text_index = 0;
-    byte sin_index = 0;
     SPRITE letters[NUM_LETTERS];
     SPRITE letter;
     STAR stars[NUM_STARS];
@@ -371,7 +379,6 @@ void mainloop(BITMAP *bmp, byte *sintable) {
         }
 
         /* Cycle the palette of the letters */
-        /*
         outp(PALETTE_WRITE_INDEX, 1);
         for (ci = color_cycle; ci < TEXT_PALETTE_COLORS; ++ci) {
             outportb(PALETTE_COLORS, palette[ci]);
@@ -383,7 +390,6 @@ void mainloop(BITMAP *bmp, byte *sintable) {
         if (color_cycle == TEXT_PALETTE_COLORS) {
             color_cycle = 0;
         }
-        */
 
         /* Clear page */
         outport(SC_INDEX, ALL_PLANES);
@@ -393,8 +399,7 @@ void mainloop(BITMAP *bmp, byte *sintable) {
         for (ri = 0; ri < NUM_LETTERS; ++ri) {
             letter = letters[ri];
 
-            /* TODO Uncommenten */
-            /*letter.x -= LETTER_SCROLL_SPEED;*/
+            letter.x -= LETTER_SCROLL_SPEED;
 
             if (letter.x <= -LETTER_WIDTH) {
                 /* letter is completely offscreen */
@@ -448,54 +453,68 @@ void mainloop(BITMAP *bmp, byte *sintable) {
             /*outp(SC_INDEX, MAP_MASK);*/
             /*outp(SC_DATA, 1 << plane);*/
 
-            ci = 1 + plane * 16;
+            /*ci = 1 + plane * 16;*/
             /*ci = 57;*/
 
             for (ri = 0; ri < NUM_LETTERS; ++ri) {
                 letter = letters[ri];
 
-                if (letter.letter_offset == LETTER_SPACE) {
-                    continue;
+                /*start_x = ((letter.x / 4) * 4) - letter.x;*/
+                start_x = (letter.x - (letter.x & 3)) - letter.x;
+                if (start_x < 0) {
+                    start_x += 4;
                 }
 
-                start_x = (letter.x - (letter.x & 3)) - letter.x;
-                /*start_x = ((letter.x / 4) * 4) - letter.x;*/
+                if (letter.x < 0) {
+                    /* Left side of the letter is offscreen */
+                    r_from = (letter.x - (LETTER_WIDTH + letter.x) & 3) - letter.x;
+                    r_to = LETTER_WIDTH;
+                } else if (letter.x + LETTER_WIDTH < SCREEN_WIDTH) {
+                    /* Letter is completely visible */
+                    r_from = start_x;
+                    r_to = LETTER_WIDTH;
+                } else {
+                    /* Right side of the letter is offscreen */
+                    r_from = start_x;
+                    r_to = LETTER_WIDTH - ((letter.x + LETTER_WIDTH) - SCREEN_WIDTH);
+                }
 
-                for (i = start_x + plane; i < LETTER_WIDTH; i = i + 4) {
+                for (i = r_from + plane; i < r_to; i = i + 4) {
+                /*for (i = start_x + plane; i < LETTER_WIDTH; i = i + 4) {*/
                 /*for (i = 0; i < 4; i = i + 1) {*/
-                    if (i < 0) {
-                        continue;
-                    }
-
-                    /*y = sintable[global_sin_index++];*/
-                    /*y = sintable[0];*/
-
-                    sin_index = global_sin_index + i + letter.x;
-                    y = sintable[sin_index];
+                    /*if (i < 0) {*/
+                        /*continue;*/
+                    /*}*/
 
                     rx = letter.x + i;
 
-                    if (rx < 0) {
-                        continue;
-                    }
+                    /*y = sintable[global_sin_index++];*/
+                    /*y = sintable[0];*/
+                    y = sintable[(byte)rx];
 
-                    if (rx >= SCREEN_WIDTH) {
-                        break;
-                    }
+                    /* Dit zet de kleur 'vast' per X coordinaat */
+                    /*ci = 1 + (rx & 63);*/
 
                     bitmap_offset = letter.letter_offset + i;
-                    screen_offset = ((y) << 6) + ((y) << 4) + (rx >> 2);
+                    screen_offset = non_visible_page + y + (rx >> 2);
 
                     for(j = 0; j < LETTER_HEIGHT; ++j) {
-                        if (bmp->data[bitmap_offset] != 0) {
-                            /*double_buffer[screen_offset] = bmp->data[bitmap_offset];*/
+                        /* Deze zet de kleur 'vast' per Y coordinaat */
+                        /*ci = 1 + ((y+j) & 63);*/
+
+                        /*VGA[screen_offset] = bmp->data[bitmap_offset];*/
+                        VGA[screen_offset] = bmp.data[bitmap_offset];
+                        /*VGA[screen_offset] = 33;*/
+                        /*if (bmp->data[bitmap_offset] > 0) {*/
                             /*double_buffer[screen_offset] = (y + j) - 58;*/
                             /*VGA[non_visible_page + screen_offset] = y - 57;*/
-                            VGA[non_visible_page + screen_offset] = ci;
-                        }
+                            /*VGA[non_visible_page + screen_offset] = ci;*/
+                            /*VGA[screen_offset] = ci;*/
+                        /*}*/
 
                         screen_offset += PLANE_WIDTH;
-                        bitmap_offset += bmp->width;
+                        /*bitmap_offset += bmp->width;*/
+                        bitmap_offset += BITMAP_WIDTH;
                     }
                 }
             }
@@ -520,7 +539,7 @@ void mainloop(BITMAP *bmp, byte *sintable) {
 
         /*getch();*/
 
-        ++global_sin_index;
+        /*++global_sin_index;*/
 
         #ifdef USE_TIMER
         ZTimerOff();
@@ -561,19 +580,19 @@ void validate_checksum() {
 void cracktro() {
     int i;
     BITMAP bmp;
-    byte sintable[SINTABLE_SIZE];
+    short sintable[SINTABLE_SIZE];
 
     calculate_sintable(sintable, SINTABLE_SIZE);
 
-    bmp.width = 1344;
-    bmp.height = 30;
+    bmp.width = BITMAP_WIDTH;
+    bmp.height = BITMAP_HEIGHT;
     unrle(letters, &bmp);
 
     set_mode(VGA_256_COLOR_MODE);
     set_unchained_mode();
     set_palette();
 
-    mainloop(&bmp, sintable);
+    mainloop(bmp, sintable);
 
     free(bmp.data);
 
