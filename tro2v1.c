@@ -70,7 +70,7 @@ word *my_clock=(word *)0x0000046C;
 
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 200
-#define NUM_PIXELS SCREEN_WIDTH * SCREEN_HEIGHT
+#define NUM_PIXELS (word)(SCREEN_WIDTH * SCREEN_HEIGHT)
 #define SCREEN_DEPTH 128
 #define HALF_WIDTH 160
 #define HALF_HEIGHT 100
@@ -90,7 +90,7 @@ word *my_clock=(word *)0x0000046C;
 /*#define NUM_STARS 1*/
 #define STAR_SPEED 1
 #define LETTER_SCROLL_SPEED 3
-#define LETTER_WIDTH 30
+#define LETTER_WIDTH 32
 #define LETTER_HEIGHT 30
 #define LETTER_SPACE 2000
 #define LETTER_PADDING 4
@@ -127,10 +127,10 @@ typedef struct
 /*char text[] = " BRBRBRBRBRBR HERE COMES THE CHINESE EARTHQUAKE";*/
 /*char text[] = "1 2 3 4 5 6 7 8 9 0";*/
 /*char text[] = "ACAB ACAB ACAB ACAB ACAB ACAB";*/
-char text[] = "ACAB ACAB";
-/*char text[] = "A";*/
+/*char text[] = "ACAB ACAB";*/
+char text[] = "ACAB";
 
-static byte sin_index = 0;
+static byte global_sin_index = 0;
 
 void set_mode(byte mode)
 {
@@ -312,12 +312,14 @@ void flip_pages(word *visible_page, word *non_visible_page) {
 
 void mainloop(BITMAP *bmp, byte *sintable) {
     short x, y;
+    short start_x;
     short rx;
     byte i = 0, j = 0, ri = 0;
     byte plane = 0;
     short ci = 0;
     short color_cycle = 0;
     short text_index = 0;
+    byte sin_index = 0;
     SPRITE letters[NUM_LETTERS];
     SPRITE letter;
     STAR stars[NUM_STARS];
@@ -334,6 +336,7 @@ void mainloop(BITMAP *bmp, byte *sintable) {
     /* Initial letters */
     for (ri = 0; ri < NUM_LETTERS; ++ri) {
         letters[ri].x = (short)((LETTER_WIDTH + LETTER_PADDING) * ri);
+        letters[ri].x += 1;
         if (text[ri] >= 65) {
             /* Letters */
             letters[ri].letter_offset = (short)((text[text_index] - 65) * 32);
@@ -344,8 +347,8 @@ void mainloop(BITMAP *bmp, byte *sintable) {
             /* Space */
             letters[ri].letter_offset = LETTER_SPACE;
         }
-        /*letters[ri].sin_index = ri * 2;*/
-        /*letters[ri].sin_index = ri;*/
+        /*letters[ri].global_sin_index = ri * 2;*/
+        /*letters[ri].global_sin_index = ri;*/
         text_index++;
     }
 
@@ -390,7 +393,8 @@ void mainloop(BITMAP *bmp, byte *sintable) {
         for (ri = 0; ri < NUM_LETTERS; ++ri) {
             letter = letters[ri];
 
-            letter.x -= LETTER_SCROLL_SPEED;
+            /* TODO Uncommenten */
+            /*letter.x -= LETTER_SCROLL_SPEED;*/
 
             if (letter.x <= -LETTER_WIDTH) {
                 /* letter is completely offscreen */
@@ -432,15 +436,20 @@ void mainloop(BITMAP *bmp, byte *sintable) {
         }
 
         /* TEMP */
-        letters[0].x = 4;
+        /*letters[0].x = 4;*/
 
         /* Draw letters */
-        /*for (plane = 0; plane < 4; ++plane) {*/
-        for (plane = 0; plane < 1; ++plane) {
+        for (plane = 0; plane < 4; ++plane) {
+        /*for (plane = 0; plane < 1; ++plane) {*/
             /* Select the next plane */
             /*outport(SC_INDEX, 0x0102);*/
+
+            outport(SC_INDEX, ((1 << plane) << 8) + MAP_MASK);
             /*outp(SC_INDEX, MAP_MASK);*/
             /*outp(SC_DATA, 1 << plane);*/
+
+            ci = 1 + plane * 16;
+            /*ci = 57;*/
 
             for (ri = 0; ri < NUM_LETTERS; ++ri) {
                 letter = letters[ri];
@@ -449,68 +458,45 @@ void mainloop(BITMAP *bmp, byte *sintable) {
                     continue;
                 }
 
-                if (letter.x < 0) {
-                    /*
-                       screen_offset = (y<<8)+(y<<6);
-                       bitmap_offset = letter.letter_offset - letter.x;
+                start_x = (letter.x - (letter.x & 3)) - letter.x;
+                /*start_x = ((letter.x / 4) * 4) - letter.x;*/
 
-                       for(j = 0; j < LETTER_HEIGHT; ++j)
-                       {
-                       memcpy(&double_buffer[screen_offset], &bmp->data[bitmap_offset], LETTER_WIDTH + letter.x);
-
-                       bitmap_offset += bmp->width;
-                       screen_offset += SCREEN_WIDTH;
-                       }
-                       */
-                } else if (letter.x + LETTER_WIDTH < SCREEN_WIDTH) {
-                    /* Letter is completely on-screen */
-
-                    /*
-                        outp(SC_INDEX, MAP_MASK);
-                        outp(SC_DATA, 1 << plane);
-                        for (x = 0; x < 80; ++x) {
-                            for (y = 0; y < SCREEN_HEIGHT; ++y) {
-                                VGA[non_visible_page + (y << 6) + (y << 4) + x] = 4;
-                            }
-                        }
-                        */
-
-                    for (i = 0; i < LETTER_WIDTH; i = i + 1) {
-                    /*for (i = 0; i < 4; i = i + 1) {*/
-                        rx = letter.x + i;
-
-            outp(SC_INDEX, MAP_MASK);
-            outp(SC_DATA, 1 << (rx & 3));
-
-                        y = sintable[sin_index++];
-                        bitmap_offset = letter.letter_offset + i;
-
-                        screen_offset = ((y) << 6) + ((y) << 4) + (rx >> 2);
-                        for(j = 0; j < LETTER_HEIGHT; ++j) {
-                            if (bmp->data[bitmap_offset] != 0) {
-                                /*double_buffer[screen_offset] = bmp->data[bitmap_offset];*/
-                                /*double_buffer[screen_offset] = (y + j) - 58;*/
-                                VGA[non_visible_page + screen_offset] = y - 57;
-                            }
-
-                            screen_offset += PLANE_WIDTH;
-                            bitmap_offset += bmp->width;
-                        }
+                for (i = start_x + plane; i < LETTER_WIDTH; i = i + 4) {
+                /*for (i = 0; i < 4; i = i + 1) {*/
+                    if (i < 0) {
+                        continue;
                     }
-                } else if (letter.x + LETTER_WIDTH < SCREEN_WIDTH + LETTER_WIDTH - 1) {
-                    /*
-                       screen_offset = (y<<8)+(y<<6) + letter.x;
-                       bitmap_offset = letter.letter_offset;
-                       width = SCREEN_WIDTH - letter.x;
 
-                       for(j = 0; j < LETTER_HEIGHT; ++j)
-                       {
-                       memcpy(&double_buffer[screen_offset], &bmp->data[bitmap_offset], width);
+                    /*y = sintable[global_sin_index++];*/
+                    /*y = sintable[0];*/
 
-                       bitmap_offset += bmp->width;
-                       screen_offset += SCREEN_WIDTH;
-                       }
-                       */
+                    sin_index = global_sin_index + i + letter.x;
+                    y = sintable[sin_index];
+
+                    rx = letter.x + i;
+
+                    if (rx < 0) {
+                        continue;
+                    }
+
+                    if (rx >= SCREEN_WIDTH) {
+                        break;
+                    }
+
+                    bitmap_offset = letter.letter_offset + i;
+                    screen_offset = ((y) << 6) + ((y) << 4) + (rx >> 2);
+
+                    for(j = 0; j < LETTER_HEIGHT; ++j) {
+                        if (bmp->data[bitmap_offset] != 0) {
+                            /*double_buffer[screen_offset] = bmp->data[bitmap_offset];*/
+                            /*double_buffer[screen_offset] = (y + j) - 58;*/
+                            /*VGA[non_visible_page + screen_offset] = y - 57;*/
+                            VGA[non_visible_page + screen_offset] = ci;
+                        }
+
+                        screen_offset += PLANE_WIDTH;
+                        bitmap_offset += bmp->width;
+                    }
                 }
             }
         }
@@ -532,7 +518,9 @@ void mainloop(BITMAP *bmp, byte *sintable) {
         /* Wait for start of next vertical trace(?) */
         while (!(inp(INPUT_STATUS) & VRETRACE));
 
-        getch();
+        /*getch();*/
+
+        ++global_sin_index;
 
         #ifdef USE_TIMER
         ZTimerOff();
@@ -589,8 +577,6 @@ void cracktro() {
 
     free(bmp.data);
 
-    /* Clears the screen, prevents some screen artifacts while switching to text mode */
-    memset(VGA, 0, NUM_PIXELS);
     set_mode(TEXT_MODE);
 }
 
