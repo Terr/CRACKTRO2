@@ -42,7 +42,9 @@ word *my_clock=(word *)0x0000046C;
 #define NUM_COLORS 256
 /*#define TEXT_PALETTE_SIZE 90*/
 /*#define TEXT_PALETTE_COLORS 270*/
-#define TEXT_PALETTE_SIZE 64
+#define TEXT_PALETTE_SIZE 128
+#define BLACK_PALETTE_SIZE 63
+#define STARS_PALETTE_SIZE 64
 #define TEXT_PALETTE_COLORS 192
 
 #define SC_INDEX            0x03c4    /* VGA sequence controller */
@@ -257,8 +259,9 @@ void set_palette() {
     outp(PALETTE_COLORS, 0); /* G */
     outp(PALETTE_COLORS, 0); /* B */
 
-    /* Rainbow palette (index 1-64) */
-    for (angle = 0, i = 0; i < TEXT_PALETTE_SIZE; i++,angle += 5) {
+    /* Rainbow palette (index 1-128) */
+    /*for (angle = 0, i = 0; i < TEXT_PALETTE_SIZE; i++,angle += 5) {*/
+    for (angle = 0, i = 0; i < TEXT_PALETTE_SIZE; i++, angle += 2) {
         if (angle<60) {red = 255; green = ceil(angle*4.25-0.01); blue = 0;} else
         if (angle<120) {red = ceil((120-angle)*4.25-0.01); green = 255; blue = 0;} else
         if (angle<180) {red = 0, green = 255; blue = ceil((angle-120)*4.25-0.01);} else
@@ -271,18 +274,15 @@ void set_palette() {
         outp(PALETTE_COLORS, blue >> 2); /* B */
     }
 
-    /* More black (index 64-127)  */
-    for (i = 0; i < 63; ++i) {
+    /* More black (index 128-...)  */
+    for (i = 0; i < BLACK_PALETTE_SIZE; ++i) {
         outp(PALETTE_COLORS, 0);
         outp(PALETTE_COLORS, 0);
         outp(PALETTE_COLORS, 0);
     }
 
     /* Grey tones - 128, used for stars */
-    for (i = 0; i < 64; ++i) {
-        outp(PALETTE_COLORS, i);
-        outp(PALETTE_COLORS, i);
-        outp(PALETTE_COLORS, i);
+    for (i = 0; i < STARS_PALETTE_SIZE; ++i) {
         outp(PALETTE_COLORS, i);
         outp(PALETTE_COLORS, i);
         outp(PALETTE_COLORS, i);
@@ -325,7 +325,8 @@ void mainloop(BITMAP bmp, short *sintable) {
     short i;
     byte j = 0, ri = 0;
     byte plane = 0;
-    short ci = 0;
+    byte ci = 0;
+    byte cy = 0;
     short color_cycle = 0;
     short text_index = 0;
     SPRITE letters[NUM_LETTERS];
@@ -379,7 +380,7 @@ void mainloop(BITMAP bmp, short *sintable) {
         }
 
         /* Cycle the palette of the letters */
-        outp(PALETTE_WRITE_INDEX, 1);
+        /*outp(PALETTE_WRITE_INDEX, 1);
         for (ci = color_cycle; ci < TEXT_PALETTE_COLORS; ++ci) {
             outportb(PALETTE_COLORS, palette[ci]);
         }
@@ -389,7 +390,7 @@ void mainloop(BITMAP bmp, short *sintable) {
         color_cycle += 3;
         if (color_cycle == TEXT_PALETTE_COLORS) {
             color_cycle = 0;
-        }
+        }*/
 
         /* Clear page */
         outport(SC_INDEX, ALL_PLANES);
@@ -479,6 +480,7 @@ void mainloop(BITMAP bmp, short *sintable) {
                     r_to = LETTER_WIDTH - ((letter.x + LETTER_WIDTH) - SCREEN_WIDTH);
                 }
 
+                /*rx = letter.x + r_from + plane;*/
                 for (i = r_from + plane; i < r_to; i = i + 4) {
                 /*for (i = start_x + plane; i < LETTER_WIDTH; i = i + 4) {*/
                 /*for (i = 0; i < 4; i = i + 1) {*/
@@ -486,11 +488,13 @@ void mainloop(BITMAP bmp, short *sintable) {
                         /*continue;*/
                     /*}*/
 
+                    /* This holds the column to draw on the currently selected plane */
                     rx = letter.x + i;
 
                     /*y = sintable[global_sin_index++];*/
                     /*y = sintable[0];*/
                     y = sintable[(byte)rx];
+                    cy = 1 + (y >> 8) + (y >> 9);
 
                     /* Dit zet de kleur 'vast' per X coordinaat */
                     /*ci = 1 + (rx & 63);*/
@@ -499,11 +503,17 @@ void mainloop(BITMAP bmp, short *sintable) {
                     screen_offset = non_visible_page + y + (rx >> 2);
 
                     for(j = 0; j < LETTER_HEIGHT; ++j) {
-                        /* Deze zet de kleur 'vast' per Y coordinaat */
-                        /*ci = 1 + ((y+j) & 63);*/
+                        if (bmp.data[bitmap_offset] > 0) {
+                            /*VGA[screen_offset] = ci;*/
+                            /* Deze zet de kleur 'vast' per Y coordinaat */
+                            VGA[screen_offset] = ((cy + j) & 127);
+                        }
 
                         /*VGA[screen_offset] = bmp->data[bitmap_offset];*/
-                        VGA[screen_offset] = bmp.data[bitmap_offset];
+
+                        /* Deze regel alleen zet de kleur vast per Y coordinaat van de letter (helemaal geen cycling) */
+                        /*VGA[screen_offset] = bmp.data[bitmap_offset];*/
+
                         /*VGA[screen_offset] = 33;*/
                         /*if (bmp->data[bitmap_offset] > 0) {*/
                             /*double_buffer[screen_offset] = (y + j) - 58;*/
@@ -581,8 +591,21 @@ void cracktro() {
     int i;
     BITMAP bmp;
     short sintable[SINTABLE_SIZE];
+    /*
+    char* line;
+    FILE* f;
+    */
 
     calculate_sintable(sintable, SINTABLE_SIZE);
+
+    /*
+    f = fopen("sintable.txt", "w");
+    for (i = 0; i < SINTABLE_SIZE; ++i) {
+        sprintf(line, "%d\n", sintable[i]);
+        fputs(line, f);
+    }
+    fclose(f);
+    */
 
     bmp.width = BITMAP_WIDTH;
     bmp.height = BITMAP_HEIGHT;
