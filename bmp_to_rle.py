@@ -19,7 +19,8 @@ def load_bmp(filename: str) -> list[int]:
                 # data[index + x] = ord(bmp.read(1).decode("ascii"))
                 byte = ord(bmp.read(1).decode("ascii"))
                 if byte > 0:
-                    data[index + x] = y
+                    # data[index + x] = y
+                    data[index + x] = 1
                 else:
                     data[index + x] = 0
 

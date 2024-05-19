@@ -75,10 +75,11 @@ word *my_clock=(word *)0x0000046C;
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 200
 #define NUM_PIXELS (word)(SCREEN_WIDTH * SCREEN_HEIGHT)
-#define SCREEN_DEPTH 128
+#define SCREEN_DEPTH 64
 #define HALF_WIDTH 160
 #define HALF_HEIGHT 100
 #define PLANE_WIDTH 80
+#define PLANE_HALF_WIDTH 80
 
 #define PI 3.14159
 #define SINTABLE_SIZE 256
@@ -93,12 +94,12 @@ word *my_clock=(word *)0x0000046C;
 #define NUM_STARS 69
 /*#define NUM_STARS 1*/
 #define STAR_SPEED 1
-#define BITMAP_WIDTH 1376
+#define BITMAP_WIDTH 1440
 #define BITMAP_HEIGHT 30
 #define LETTER_SCROLL_SPEED 2
 #define LETTER_WIDTH 32
 #define LETTER_HEIGHT 30
-#define LETTER_SPACE 1344
+#define LETTER_SPACE 1408
 #define LETTER_PADDING 4
 #define TEXT_Y_OFFSET 5
 /*#define WIGGLE 10*/
@@ -122,19 +123,18 @@ typedef struct
     short x;
     short y;
     short z;
-    short prevx; /* The screen coordinates the star was drawn in the previous frame */
-    short prevy;
     byte c;
 } STAR;
 
 /*char text[] =   "                 NOSTALGIA PROUDLY PRESENTZ: SIMCITY V1.07 +1 BY MAXIS!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 TWINBEARD BRACKEEN AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";*/
-char text[] =   "NOSTALGIA PROUDLY PRESENTZ: SIMCITY V1.07 +1 BY MAXIS!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 TWINBEARD BRACKEEN AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";
+char text[] =   "OWO WHATS THIS ANOTHER NOSTALGIA RELEASE# YOU BET!        NOSTALGIA PROUDLY PRESENTZ: SID MEIERS CIVILIZATION V474.05 +4 BY MICROPROSE!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 ABRASH BRACKEEN QBMIKEHAWK AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";
 /*char text[] = "         ABCDEFGHIJKLMNOPQRSTUVWXYZ";*/
 /*char text[] = " BRBRBRBRBRBR HERE COMES THE CHINESE EARTHQUAKE";*/
 /*char text[] = "1 2 3 4 5 6 7 8 9 0";*/
 /*char text[] = "ACAB ACAB ACAB ACAB ACAB ACAB";*/
 /*char text[] = "ACAB ACAB";*/
 /*char text[] = "ACAB";*/
+/*char text[] = "  #### ????    ,./?!  ACAB";*/
 
 static byte global_sin_index = 0;
 
@@ -307,7 +307,8 @@ void calculate_ztable(short *table, int table_size) {
     float dividend = (float)SCREEN_DEPTH;
     table[0] = 0.0;
     for (i = 1; i < table_size; ++i) {
-        table[i] = (dividend / i) * (1 << ZTABLE_FIXED_FRAC);
+        /*table[i] = (dividend / (i * 1)) * (1 << ZTABLE_FIXED_FRAC);*/
+        table[i] = (dividend / (i * 1));
     }
 }
 
@@ -317,8 +318,8 @@ void flip_pages(word *visible_page, word *non_visible_page) {
     *non_visible_page = temp;
 }
 
-void mainloop(BITMAP bmp, short *sintable) {
-    short x, y;
+void mainloop(BITMAP bmp, short *sintable, short *ztable) {
+    short x = 0, y = 0;
     short start_x;
     short rx;
     short r_from, r_to;
@@ -346,12 +347,33 @@ void mainloop(BITMAP bmp, short *sintable) {
     for (ri = 0; ri < NUM_LETTERS; ++ri) {
         letters[ri].x = (short)((LETTER_WIDTH + LETTER_PADDING) * ri);
         letters[ri].x += 1;
-        if (text[ri] >= 65) {
-            /* Letters */
-            letters[ri].letter_offset = (short)((text[text_index] - 65) * 32);
-        } else if (text[ri] >= 48) {
-            /* Digits */
-            letters[ri].letter_offset = (short)((26 + text[text_index] - 48) * 32);
+
+        if (text[text_index] >= 65) {
+            letters[ri].letter_offset = (short)((text[text_index] - 65) << 5);
+        } else if (text[text_index] >= 48) {
+            /* Digits + colon */
+            letters[ri].letter_offset = (short)((text[text_index] - 22) << 5);
+        } else if (text[text_index] == 33) {
+            /* Exclamation mark */
+            letters[ri].letter_offset = 1184;
+        } else if (text[text_index] == 43) {
+            /* Plus sign */
+            letters[ri].letter_offset = 1216;
+        } else if (text[text_index] == 46) {
+            /* Dot */
+            letters[ri].letter_offset = 1248;
+        } else if (text[text_index] == 45) {
+            /* Minus sign */
+            letters[ri].letter_offset = 1280;
+        } else if (text[text_index] == 47) {
+            /* Slash */
+            letters[ri].letter_offset = 1312;
+        } else if (text[text_index] == 44) {
+            /* Comma */
+            letters[ri].letter_offset = 1344;
+        } else if (text[text_index] == 35) {
+            /* Question mark, but ASCII code of '?' isn't recognize so use a '#' instead */
+            letters[ri].letter_offset = 1372;
         } else {
             /* Space */
             letters[ri].letter_offset = LETTER_SPACE;
@@ -361,11 +383,22 @@ void mainloop(BITMAP bmp, short *sintable) {
         text_index++;
     }
 
+    /* Initial stars */
+    randomize();
+    for (ri = 0; ri < NUM_STARS; ++ri) {
+        stars[ri].x = random(PLANE_WIDTH - 1);
+        stars[ri].y = random(SCREEN_HEIGHT - 1);
+        stars[ri].z = random(SCREEN_DEPTH - 2);
+        stars[ri].c = 255 - stars[ri].z;
+    }
+
     /* Store palette for cycling */
+    /*
     outp(PALETTE_READ_INDEX, 1);
     for (ci = 0; ci < TEXT_PALETTE_COLORS; ++ci) {
         palette[ci] = inp(PALETTE_COLORS);
     }
+    */
 
     while (1) {
         #ifdef USE_TIMER
@@ -396,7 +429,7 @@ void mainloop(BITMAP bmp, short *sintable) {
         outport(SC_INDEX, ALL_PLANES);
         memset(&VGA[non_visible_page], 0, NUM_PIXELS / 4);
 
-        /* First update the position of the letters, then draw them to the four planes */
+        /* First update the position of the letters */
         for (ri = 0; ri < NUM_LETTERS; ++ri) {
             letter = letters[ri];
 
@@ -407,10 +440,10 @@ void mainloop(BITMAP bmp, short *sintable) {
                 letter.x = LETTER_PADDING + (LETTER_WIDTH + LETTER_PADDING) * (NUM_LETTERS - 1);
 
                 if (text[text_index] >= 65) {
-                    letter.letter_offset = (short)((text[text_index] - 65) * 32);
+                    letter.letter_offset = (short)((text[text_index] - 65) << 5);
                 } else if (text[text_index] >= 48) {
                     /* Digits + colon */
-                    letter.letter_offset = (short)((text[text_index] - 22) * 32);
+                    letter.letter_offset = (short)((text[text_index] - 22) << 5);
                 } else if (text[text_index] == 33) {
                     /* Exclamation mark */
                     letter.letter_offset = 1184;
@@ -420,12 +453,18 @@ void mainloop(BITMAP bmp, short *sintable) {
                 } else if (text[text_index] == 46) {
                     /* Dot */
                     letter.letter_offset = 1248;
-                } else if (text[text_index] == 47) {
-                    /* Slash */
-                    letter.letter_offset = 1312;
                 } else if (text[text_index] == 45) {
                     /* Minus sign */
                     letter.letter_offset = 1280;
+                } else if (text[text_index] == 47) {
+                    /* Slash */
+                    letter.letter_offset = 1312;
+                } else if (text[text_index] == 44) {
+                    /* Comma */
+                    letter.letter_offset = 1344;
+                } else if (text[text_index] == 35) {
+                    /* Question mark, but ASCII code of '?' isn't recognize so use a '#' instead */
+                    letter.letter_offset = 1372;
                 } else {
                     /* Space */
                     letter.letter_offset = LETTER_SPACE;
@@ -441,10 +480,28 @@ void mainloop(BITMAP bmp, short *sintable) {
             }
         }
 
-        /* TEMP */
-        /*letters[0].x = 4;*/
+        /* Calculate the new position of every star */
+        for (ri = 0; ri < NUM_STARS; ++ri) {
+            /*y = (stars[ri].y * ztable[stars[ri].z]) >> ZTABLE_FIXED_FRAC;*/
+            /*stars[ri].x += 1;*/
+            /*stars[ri].z -= STAR_SPEED;*/
+            /*stars[ri].c++;*/
 
-        /* Draw letters */
+            if (stars[ri].x >= PLANE_WIDTH) {
+                /* Star went out of bounds so create a new one, and draw it again in the next frame */
+                /* The reason for not drawing it now has to do with the "star.z" division needs to be done, and doing it again for this new star would slow things down */
+                stars[ri].x = 0;
+                stars[ri].y = random(SCREEN_HEIGHT - 1);
+                stars[ri].z = random(SCREEN_DEPTH - 2);
+                /*stars[ri].c = TEXT_PALETTE_SIZE + BLACK_PALETTE_SIZE;*/
+                stars[ri].c = 255 - stars[ri].z;
+            }
+
+            /*stars[ri].x += ztable[stars[ri].z + 1] >> ZTABLE_FIXED_FRAC;*/
+            stars[ri].x += ztable[stars[ri].z + 1];
+        }
+
+        /* Draw letters and stars */
         for (plane = 0; plane < 4; ++plane) {
         /*for (plane = 0; plane < 1; ++plane) {*/
             /* Select the next plane */
@@ -454,8 +511,16 @@ void mainloop(BITMAP bmp, short *sintable) {
             /*outp(SC_INDEX, MAP_MASK);*/
             /*outp(SC_DATA, 1 << plane);*/
 
-            /*ci = 1 + plane * 16;*/
-            /*ci = 57;*/
+            for (ri = 0; ri < NUM_STARS; ++ri) {
+                screen_offset = non_visible_page + (stars[ri].y << 6) + (stars[ri].y << 4) + (stars[ri].x);
+                /* TODO De sterren op een of andere manier indexeren zodat we precies weten welke er op welke plane getekend moeten worden */
+                if (screen_offset % 4 == plane) {
+                    /*screen_offset = non_visible_page + (stars[ri].y >> 6) + (stars[ri].y >> 4) + (stars[ri].x >> 2);*/
+                    /*screen_offset = non_visible_page + stars[ri].y + (stars[ri].x >> 2);*/
+                    VGA[screen_offset] = stars[ri].c;
+                    /*VGA[screen_offset] = 1;*/
+                }
+            }
 
             for (ri = 0; ri < NUM_LETTERS; ++ri) {
                 letter = letters[ri];
@@ -494,6 +559,7 @@ void mainloop(BITMAP bmp, short *sintable) {
                     /*y = sintable[global_sin_index++];*/
                     /*y = sintable[0];*/
                     y = sintable[(byte)rx];
+                    /* Omdat de Y in stappen van 80 gaan (320 / 4 planes) brengen hem terug tot kleinere stappen zodat we hem kunnen gebruiken om een kleur te kiezen per Y-coordinaat */
                     cy = 1 + (y >> 8) + (y >> 9);
 
                     /* Dit zet de kleur 'vast' per X coordinaat */
@@ -591,12 +657,14 @@ void cracktro() {
     int i;
     BITMAP bmp;
     short sintable[SINTABLE_SIZE];
+    short ztable[SCREEN_DEPTH];
     /*
     char* line;
     FILE* f;
     */
 
     calculate_sintable(sintable, SINTABLE_SIZE);
+    calculate_ztable(ztable, SCREEN_DEPTH);
 
     /*
     f = fopen("sintable.txt", "w");
@@ -615,7 +683,7 @@ void cracktro() {
     set_unchained_mode();
     set_palette();
 
-    mainloop(bmp, sintable);
+    mainloop(bmp, sintable, ztable);
 
     free(bmp.data);
 
