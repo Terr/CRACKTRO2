@@ -57,6 +57,7 @@ word *my_clock=(word *)0x0000046C;
 #define GC_DATA             0x03cf
 #define CRTC_INDEX          0x03d4    /* VGA CRT controller */
 #define CRTC_DATA           0x03d5
+#define MISC_OUTPUT         0x03c2
 
 #define MAP_MASK            0x02      /* Sequence controller registers */
 #define ALL_PLANES          0xff02
@@ -65,21 +66,28 @@ word *my_clock=(word *)0x0000046C;
 #define LATCHES_ON          0x0008    /* Graphics controller registers */
 #define LATCHES_OFF         0xff08
 
-#define HIGH_ADDRESS        0x0C      /* CRT controller registers */
+#define HIGH_ADDRESS        0x0C
 #define LOW_ADDRESS         0x0D
+
+#define V_TOTAL             0x06      /* CRT controller registers */
+#define OVERFLOW            0x07
+#define MAX_SCAN_LINE       0x09
+#define V_RETRACE_START     0x10
+#define V_RETRACE_END       0x11
+#define V_DISPLAY_END       0x12
 #define UNDERLINE_LOCATION  0x14
+#define V_BLANK_START       0x15
+#define V_BLANK_END         0x16
 #define MODE_CONTROL        0x17
 
 #define DISPLAY_ENABLE      0x01      /* VGA input status bits */
 
 #define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 200
-#define NUM_PIXELS (word)(SCREEN_WIDTH * SCREEN_HEIGHT)
+#define SCREEN_HEIGHT 240
+#define NUM_PIXELS 76800
 #define SCREEN_DEPTH 64
-#define HALF_WIDTH 160
-#define HALF_HEIGHT 100
 #define PLANE_WIDTH 80
-#define PLANE_HALF_WIDTH 80
+#define NUM_PIXELS_PER_PLANE 16000
 
 #define PI 3.14159
 #define SINTABLE_SIZE 256
@@ -147,26 +155,75 @@ void set_mode(byte mode)
 }
 
 /* Unchain memory to enable planar addressing, aka Mode Y */
-void set_unchained_mode(void)
+void unchain_vga(void)
 {
     word i;
     dword *ptr=(dword *)VGA;            /* used for faster screen clearing */
 
-    outp(SC_INDEX,  MEMORY_MODE);       /* turn off chain-4 mode */
-    outp(SC_DATA,   0x06);
+    outp(SC_INDEX, MEMORY_MODE);       /* turn off chain-4 mode */
+    outp(SC_DATA, 0x06);
+
+    /* Reset clock to 25MHz @ 60Hz, not stricly necessary but Abrash does it in his Mode X example */
+    outp(MISC_OUTPUT, 0xE3);
+
+    /* Undo reset(?) */
+    outp(SC_INDEX, 0x00);
+    outp(SC_DATA, 0x03);
 
     /* outpw() is not available in Turbo C */
     outport(SC_INDEX, ALL_PLANES);      /* set map mask to all 4 planes */
 
-    for(i=0; i<0x4000; ++i) {           /* clear all 256K of memory */
+    for(i = 0; i < 0x8000; ++i) {       /* clear all 256K of memory */
+                                        /* TODO is it actually 256k? 0x8000 * 4 = 128k */
         *ptr++ = 0;
     }
 
-    outp(CRTC_INDEX,UNDERLINE_LOCATION);/* turn off long mode */
+    outp(CRTC_INDEX, UNDERLINE_LOCATION);/* turn off long mode (aka dword mode) */
     outp(CRTC_DATA, 0x00);
 
-    outp(CRTC_INDEX,MODE_CONTROL);      /* turn on byte mode */
-    outp(CRTC_DATA, 0xe3);
+    outp(CRTC_INDEX, MODE_CONTROL);      /* turn on byte mode */
+    outp(CRTC_DATA, 0xE3);
+}
+
+void set_mode_x(void)
+{
+    byte vsync_end = 0;
+    /* Remove write protect bits on various VGA registers */
+    outp(CRTC_INDEX, 0x11);
+    vsync_end = inp(CRTC_DATA) & 0x7f;
+    outp(CRTC_DATA, vsync_end);
+
+    outp(CRTC_INDEX, V_RETRACE_END);
+    outp(CRTC_DATA, 0x2c);
+
+    outp(CRTC_INDEX, V_TOTAL);
+    outp(CRTC_DATA, 0x0D);
+
+    outp(CRTC_INDEX, OVERFLOW);
+    outp(CRTC_DATA, 0x3E);
+
+    outp(CRTC_INDEX, MAX_SCAN_LINE); /* "Cell height" */
+    outp(CRTC_DATA, 0x41);
+
+    outp(CRTC_INDEX, V_RETRACE_START);
+    outp(CRTC_DATA, 0xEA);
+
+    outp(CRTC_INDEX, V_RETRACE_END);
+    outp(CRTC_DATA, 0xAC);
+
+    outp(CRTC_INDEX, V_DISPLAY_END);
+    outp(CRTC_DATA, 0xDF);
+
+    outp(CRTC_INDEX, V_BLANK_START);
+    outp(CRTC_DATA, 0xE7);
+
+    outp(CRTC_INDEX, V_BLANK_END);
+    outp(CRTC_DATA, 0x06);
+
+    /* Set write protect back */
+    outp(CRTC_INDEX, 0x11);
+    vsync_end = inp(CRTC_DATA) & 0x80;
+    outp(CRTC_DATA, vsync_end);
 }
 
 void unrle(byte* compressed, BITMAP *bmp) {
@@ -341,7 +398,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable) {
     word temp = 0;
     word visible_page = 0;
     word non_visible_page = NUM_PIXELS / 4;
-    word high_address,low_address;
+    word high_address, low_address;
 
     /* Initial letters */
     for (ri = 0; ri < NUM_LETTERS; ++ri) {
@@ -427,7 +484,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable) {
 
         /* Clear page */
         outport(SC_INDEX, ALL_PLANES);
-        memset(&VGA[non_visible_page], 0, NUM_PIXELS / 4);
+        memset(&VGA[non_visible_page], 0, NUM_PIXELS_PER_PLANE);
 
         /* First update the position of the letters */
         for (ri = 0; ri < NUM_LETTERS; ++ri) {
@@ -517,8 +574,8 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable) {
                 if (screen_offset % 4 == plane) {
                     /*screen_offset = non_visible_page + (stars[ri].y >> 6) + (stars[ri].y >> 4) + (stars[ri].x >> 2);*/
                     /*screen_offset = non_visible_page + stars[ri].y + (stars[ri].x >> 2);*/
-                    VGA[screen_offset] = stars[ri].c;
-                    /*VGA[screen_offset] = 1;*/
+
+                    /*VGA[screen_offset] = stars[ri].c;*/
                 }
             }
 
@@ -679,8 +736,11 @@ void cracktro() {
     bmp.height = BITMAP_HEIGHT;
     unrle(letters, &bmp);
 
+    disable(); /* Disable interrupts while switching display mode */
     set_mode(VGA_256_COLOR_MODE);
-    set_unchained_mode();
+    unchain_vga();
+    set_mode_x();
+    enable();
     set_palette();
 
     mainloop(bmp, sintable, ztable);
