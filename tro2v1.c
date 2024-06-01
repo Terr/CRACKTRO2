@@ -392,6 +392,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable) {
     STAR stars[NUM_STARS];
     STAR star;
     word screen_offset, bitmap_offset;
+    word copy_source, copy_destination;
     /*byte r, g, b;*/
     byte palette[TEXT_PALETTE_COLORS];
     /* VGA pages */
@@ -538,46 +539,44 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable) {
         }
 
         /* Calculate the new position of every star */
-        for (ri = 0; ri < NUM_STARS; ++ri) {
-            /*y = (stars[ri].y * ztable[stars[ri].z]) >> ZTABLE_FIXED_FRAC;*/
-            /*stars[ri].x += 1;*/
-            /*stars[ri].z -= STAR_SPEED;*/
-            /*stars[ri].c++;*/
+        /*for (ri = 0; ri < NUM_STARS; ++ri) {*/
+            /*if (stars[ri].x >= PLANE_WIDTH) {*/
+                /*[> Star went out of bounds so create a new one, and draw it again in the next frame <]*/
+                /*[> The reason for not drawing it now has to do with the "star.z" division needs to be done, and doing it again for this new star would slow things down <]*/
+                /*stars[ri].x = 0;*/
+                /*stars[ri].y = random(SCREEN_HEIGHT - 1);*/
+                /*stars[ri].z = random(SCREEN_DEPTH - 2);*/
+                /*[>stars[ri].c = TEXT_PALETTE_SIZE + BLACK_PALETTE_SIZE;<]*/
+                /*stars[ri].c = 255 - stars[ri].z;*/
+            /*}*/
 
-            if (stars[ri].x >= PLANE_WIDTH) {
-                /* Star went out of bounds so create a new one, and draw it again in the next frame */
-                /* The reason for not drawing it now has to do with the "star.z" division needs to be done, and doing it again for this new star would slow things down */
-                stars[ri].x = 0;
-                stars[ri].y = random(SCREEN_HEIGHT - 1);
-                stars[ri].z = random(SCREEN_DEPTH - 2);
-                /*stars[ri].c = TEXT_PALETTE_SIZE + BLACK_PALETTE_SIZE;*/
-                stars[ri].c = 255 - stars[ri].z;
-            }
+            /*[>stars[ri].x += ztable[stars[ri].z + 1] >> ZTABLE_FIXED_FRAC;<]*/
+            /*stars[ri].x += ztable[stars[ri].z + 1];*/
+        /*}*/
 
-            /*stars[ri].x += ztable[stars[ri].z + 1] >> ZTABLE_FIXED_FRAC;*/
-            stars[ri].x += ztable[stars[ri].z + 1];
-        }
+        /* TODO */
+        /*flip_pages(&visible_page, &non_visible_page);*/
+        /*memset(&VGA[visible_page], 0, NUM_PIXELS_PER_PLANE);*/
 
         /* Draw letters and stars */
         for (plane = 0; plane < 4; ++plane) {
         /*for (plane = 0; plane < 1; ++plane) {*/
             /* Select the next plane */
             /*outport(SC_INDEX, 0x0102);*/
-
             outport(SC_INDEX, ((1 << plane) << 8) + MAP_MASK);
             /*outp(SC_INDEX, MAP_MASK);*/
             /*outp(SC_DATA, 1 << plane);*/
 
-            for (ri = 0; ri < NUM_STARS; ++ri) {
-                screen_offset = non_visible_page + (stars[ri].y << 6) + (stars[ri].y << 4) + (stars[ri].x);
-                /* TODO De sterren op een of andere manier indexeren zodat we precies weten welke er op welke plane getekend moeten worden */
-                if (screen_offset % 4 == plane) {
-                    /*screen_offset = non_visible_page + (stars[ri].y >> 6) + (stars[ri].y >> 4) + (stars[ri].x >> 2);*/
-                    /*screen_offset = non_visible_page + stars[ri].y + (stars[ri].x >> 2);*/
+            /*for (ri = 0; ri < NUM_STARS; ++ri) {*/
+                /*screen_offset = non_visible_page + (stars[ri].y << 6) + (stars[ri].y << 4) + (stars[ri].x);*/
+                /*[> TODO De sterren op een of andere manier indexeren zodat we precies weten welke er op welke plane getekend moeten worden <]*/
+                /*if (screen_offset % 4 == plane) {*/
+                    /*[>screen_offset = non_visible_page + (stars[ri].y >> 6) + (stars[ri].y >> 4) + (stars[ri].x >> 2);<]*/
+                    /*[>screen_offset = non_visible_page + stars[ri].y + (stars[ri].x >> 2);<]*/
 
-                    /*VGA[screen_offset] = stars[ri].c;*/
-                }
-            }
+                    /*[>VGA[screen_offset] = stars[ri].c;<]*/
+                /*}*/
+            /*}*/
 
             for (ri = 0; ri < NUM_LETTERS; ++ri) {
                 letter = letters[ri];
@@ -641,6 +640,30 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable) {
             }
         }
 
+        /* Copy pixels from the other page using latches */
+        /* Tell the VGA that all writes are to be done with bits from the latches, and none from the CPU */
+        outp(GC_INDEX, 0x08);
+        outp(GC_DATA, 0x00);
+
+        /* Select all planes */
+        outp(SC_INDEX, MAP_MASK);
+        outp(SC_DATA, 0xFF);
+
+        copy_source = visible_page + ((200 * PLANE_WIDTH));
+        copy_destination = non_visible_page + ((0 + PLANE_WIDTH)) * 200;
+
+        for (y = 0; y < 40; ++y) {
+            for (x = 0; x < PLANE_WIDTH; ++x) {
+                temp = VGA[copy_source + x];
+                VGA[copy_destination + x] = 0;
+            }
+
+            copy_source -= 5 * PLANE_WIDTH;
+            copy_destination += PLANE_WIDTH;
+        }
+
+        /* Restore write behaviour: copy data from normal memory/CPU registers */
+        outp(GC_DATA, 0xFF);
         /*wait_for_retrace();*/
 
         /*flip_pages(&visible_page, &non_visible_page);*/
