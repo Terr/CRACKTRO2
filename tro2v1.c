@@ -98,7 +98,7 @@ word *my_clock=(word *)0x0000046C;
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 #define MIN(x,y) ((x) < (y) ? (x) : (y))
 
-#define NUM_LETTERS 16
+#define NUM_LETTERS 10
 #define NUM_STARS 69
 /*#define NUM_STARS 1*/
 #define STAR_SPEED 1
@@ -144,7 +144,7 @@ char text[] =   "OWO WHATS THIS ANOTHER NOSTALGIA RELEASE# YOU BET!        NOSTA
 /*char text[] = "ACAB";*/
 /*char text[] = "  #### ????    ,./?!  ACAB";*/
 
-static byte global_sin_index = 0;
+/*static byte global_sin_index = 0;*/
 
 void set_mode(byte mode)
 {
@@ -584,19 +584,28 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable) {
 
                 /*start_x = ((letter.x / 4) * 4) - letter.x;*/
                 start_x = (letter.x - (letter.x & 3)) - letter.x;
-                if (start_x < 0) {
+                if (start_x == plane - 5) {
+                    /*
+                    * This is a work around for the fact that we sometimes start drawing a letter 2 pixels in (because letter speed is 2), so letter's column 2 at plane 0, etc.
+                    * This means that we skip two drawing pixels.
+                    *
+                    * Because the first column of a letter sprite is always empty, we only need to draw one extra column: the first potentially filled left column of the letter.
+                    * */
+                } else if (start_x < 0) {
                     start_x += 4;
                 }
+                /* Default values for letters that are complete on screen */
+                r_from = start_x;
+                r_to = LETTER_WIDTH;
+
+                /*start_x = (letter.x - (letter.x & 3)) & 3;*/
+                /*start_x = letter.x & 3;*/
 
                 if (letter.x < 0) {
                     /* Left side of the letter is offscreen */
                     r_from = (letter.x - (LETTER_WIDTH + letter.x) & 3) - letter.x;
                     r_to = LETTER_WIDTH;
-                } else if (letter.x + LETTER_WIDTH < SCREEN_WIDTH) {
-                    /* Letter is completely visible */
-                    r_from = start_x;
-                    r_to = LETTER_WIDTH;
-                } else {
+                } else if (letter.x + LETTER_WIDTH > SCREEN_WIDTH) {
                     /* Right side of the letter is offscreen */
                     r_from = start_x;
                     r_to = LETTER_WIDTH - ((letter.x + LETTER_WIDTH) - SCREEN_WIDTH);
@@ -604,49 +613,28 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable) {
 
                 /*rx = letter.x + r_from + plane;*/
                 for (i = r_from + plane; i < r_to; i = i + 4) {
-                /*for (i = start_x + plane; i < LETTER_WIDTH; i = i + 4) {*/
-                /*for (i = 0; i < 4; i = i + 1) {*/
-                    /*if (i < 0) {*/
-                        /*continue;*/
-                    /*}*/
-
                     /* This holds the column to draw on the currently selected plane */
                     rx = letter.x + i;
 
-                    /*y = sintable[global_sin_index++];*/
-                    /*y = sintable[0];*/
                     y = sintable[(byte)rx];
-                    /* Omdat de Y in stappen van 80 gaan (320 / 4 planes) brengen hem terug tot kleinere stappen zodat we hem kunnen gebruiken om een kleur te kiezen per Y-coordinaat */
+                    /*y = sintable[(byte)(global_sin_index + rx)];*/
+                    /*y = 8000;*/
+                    /* Breng de Y terug naar een kleinere waarde zodat we de Y-coordinaat als kleurcode kunnen gebruiken */
                     cy = 1 + (y >> 8) + (y >> 9);
-
-                    /* Dit zet de kleur 'vast' per X coordinaat */
-                    /*ci = 1 + (rx & 63);*/
 
                     bitmap_offset = letter.letter_offset + i;
                     screen_offset = non_visible_page + y + (rx >> 2);
 
                     for(j = 0; j < LETTER_HEIGHT; ++j) {
                         if (bmp.data[bitmap_offset] > 0) {
-                            /*VGA[screen_offset] = ci;*/
                             /* Deze zet de kleur 'vast' per Y coordinaat */
                             VGA[screen_offset] = ((cy + j) & 127);
+                            /* Dit kleurt per plane */
+                            /* Rood geel groen blauw */
+                            /*VGA[screen_offset] = 1 + (plane*32) & 127;*/
                         }
 
-                        /*VGA[screen_offset] = bmp->data[bitmap_offset];*/
-
-                        /* Deze regel alleen zet de kleur vast per Y coordinaat van de letter (helemaal geen cycling) */
-                        /*VGA[screen_offset] = bmp.data[bitmap_offset];*/
-
-                        /*VGA[screen_offset] = 33;*/
-                        /*if (bmp->data[bitmap_offset] > 0) {*/
-                            /*double_buffer[screen_offset] = (y + j) - 58;*/
-                            /*VGA[non_visible_page + screen_offset] = y - 57;*/
-                            /*VGA[non_visible_page + screen_offset] = ci;*/
-                            /*VGA[screen_offset] = ci;*/
-                        /*}*/
-
                         screen_offset += PLANE_WIDTH;
-                        /*bitmap_offset += bmp->width;*/
                         bitmap_offset += BITMAP_WIDTH;
                     }
                 }
