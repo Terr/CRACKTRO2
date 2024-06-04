@@ -431,7 +431,6 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     /* Initial letters */
     for (ri = 0; ri < NUM_LETTERS; ++ri) {
         letters[ri].x = (short)((LETTER_WIDTH + LETTER_PADDING) * ri);
-        letters[ri].x += 1;
 
         if (text[text_index] >= 65) {
             letters[ri].letter_offset = (short)((text[text_index] - 65) << 5);
@@ -510,7 +509,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
             color_offset = 127;
 
             outp(PALETTE_WRITE_INDEX, 1);
-            for (ci = 0; ci < 3*TEXT_PALETTE_SIZE; ++ci) {
+            for (ci = 3; ci < 3*TEXT_PALETTE_SIZE; ++ci) {
                 outportb(PALETTE_COLORS, palette[ci]);
             }
 
@@ -525,7 +524,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
                 outportb(PALETTE_COLORS, palette[ci]);
             }
 
-            for (ci = 0; ci < (3*TEXT_PALETTE_SIZE); ++ci) {
+            for (ci = 3; ci < (3*TEXT_PALETTE_SIZE); ++ci) {
                 outportb(PALETTE_COLORS, palette[ci]);
             }
         }
