@@ -42,8 +42,8 @@ word *my_clock=(word *)0x0000046C;
 #define NUM_COLORS 256
 /*#define TEXT_PALETTE_SIZE 90*/
 /*#define TEXT_PALETTE_COLORS 270*/
-#define TEXT_PALETTE_SIZE 127
-#define TEXT_PALETTE_ANGLE 2
+#define TEXT_PALETTE_SIZE 64
+#define TEXT_PALETTE_ANGLE 6
 #define BLACK_PALETTE_SIZE 63
 #define STARS_PALETTE_SIZE 64
 #define TEXT_PALETTE_COLORS 768
@@ -340,7 +340,6 @@ void set_palette() {
         if (angle<120) {red = 0, green = ceil((120-angle)*4.25-0.01); blue = 200;} else
         if (angle<180) {red = 0, green = ceil((240-angle)*4.25-0.01); blue = 210;} else
         if (angle<240) {red = 0, green = ceil((240-angle)*4.25-0.01); blue = 255;} else
-        if (angle<300) {red = ceil((angle-240)*4.25-0.01), green = 0; blue = 255;} else
         /*if (angle<240) {red = ceil((120-angle)*4.25-0.01); green = ceil((120-angle)*4.25-0.01); blue = ceil((120-angle)*4.25-0.01);} else*/
                         {red = 0, green = 0; blue = ceil((360-angle)*4.25-0.01);}
 
@@ -427,6 +426,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     word visible_page = 0;
     word non_visible_page = NUM_PIXELS / 4;
     word high_address, low_address;
+    /*FILE *log = fopen("debug.log", "w");*/
 
     /* Initial letters */
     for (ri = 0; ri < NUM_LETTERS; ++ri) {
@@ -479,10 +479,16 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     */
 
     /* Store palette for cycling */
+    disable();
     outp(PALETTE_READ_INDEX, 0);
     for (ci = 0; ci < TEXT_PALETTE_COLORS; ++ci) {
         palette[ci] = inp(PALETTE_COLORS);
     }
+    enable();
+
+    /*for (ci = 0; ci < TEXT_PALETTE_COLORS; ++ci) {*/
+        /*fprintf(log, "%d\n", palette[ci]);*/
+    /*}*/
 
     outport(SC_INDEX, ALL_PLANES);
 
@@ -491,11 +497,47 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         ZTimerOn();
         #endif
 
+        /* Swap the two palette sets */
+        disable();
+        if ((frame_counter & 1) == 0) {
+            color_offset = TEXT_PALETTE_SIZE;
+
+            outp(PALETTE_WRITE_INDEX, 1);
+            for (ci = 3; ci < 3*TEXT_PALETTE_SIZE;) {
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+            }
+
+            for (ci = 3*TEXT_PALETTE_SIZE; ci < 6*TEXT_PALETTE_SIZE;) {
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+            }
+        } else {
+            color_offset = 0;
+
+            outp(PALETTE_WRITE_INDEX, 1);
+            for (ci = 3*TEXT_PALETTE_SIZE; ci < 6*TEXT_PALETTE_SIZE;) {
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+            }
+
+            for (ci = 3; ci < (3*TEXT_PALETTE_SIZE);) {
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+            }
+        }
+        enable();
+
+
         /* Read keyboard input */
         geninterrupt(KEYBOARD_INT);
         switch (inp(0x60)) {
             case 0x1:
-                fclose(log);
+                /*fclose(log);*/
                 return;
         }
 
@@ -503,32 +545,6 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         /* All planes should already be selected because of the latch copy at the end of the loop */
         /*outport(SC_INDEX, ALL_PLANES);*/
         memset(&VGA[non_visible_page], 0, NUM_PIXELS_PER_PLANE);
-
-        /* Swap the two palette sets */
-        if ((frame_counter & 1) == 0) {
-            color_offset = 127;
-
-            outp(PALETTE_WRITE_INDEX, 1);
-            for (ci = 3; ci < 3*TEXT_PALETTE_SIZE; ++ci) {
-                outportb(PALETTE_COLORS, palette[ci]);
-            }
-
-            for (ci = 3*127; ci < 6*TEXT_PALETTE_SIZE; ++ci) {
-                outportb(PALETTE_COLORS, palette[ci]);
-            }
-        } else {
-            color_offset = 0;
-
-            outp(PALETTE_WRITE_INDEX, 1);
-            for (ci = 3*127; ci < 6*TEXT_PALETTE_SIZE; ++ci) {
-                outportb(PALETTE_COLORS, palette[ci]);
-            }
-
-            for (ci = 3; ci < (3*TEXT_PALETTE_SIZE); ++ci) {
-                outportb(PALETTE_COLORS, palette[ci]);
-            }
-        }
-
 
         /* First update the position of the letters */
         for (ri = 0; ri < NUM_LETTERS; ++ri) {
@@ -662,7 +678,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
                     /*y = sintable[(byte)(global_sin_index + rx)];*/
                     /*y = 8000;*/
                     /* Breng de Y terug naar een kleinere waarde zodat we de Y-coordinaat als kleurcode kunnen gebruiken */
-                    cy = 1 + (y >> 8) + (y >> 9) + color_offset;
+                    cy = 1 + ((y >> 8) + (y >> 8) >> 2) + color_offset;
 
                     bitmap_offset = letter.letter_offset + i;
                     screen_offset = non_visible_page + y + (rx >> 2);
