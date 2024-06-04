@@ -819,7 +819,11 @@ void cracktro() {
     enable();
     set_palette();
 
+    PreparePlayer();
+
     mainloop(bmp, sintable, ztable, distortion_table);
+
+    StopPlayer();
 
     free(bmp.data);
 
