@@ -43,9 +43,10 @@ word *my_clock=(word *)0x0000046C;
 /*#define TEXT_PALETTE_SIZE 90*/
 /*#define TEXT_PALETTE_COLORS 270*/
 #define TEXT_PALETTE_SIZE 127
+#define TEXT_PALETTE_ANGLE 2
 #define BLACK_PALETTE_SIZE 63
 #define STARS_PALETTE_SIZE 64
-#define TEXT_PALETTE_COLORS 255*3
+#define TEXT_PALETTE_COLORS 768
 
 #define SC_INDEX            0x03c4    /* VGA sequence controller */
 #define SC_DATA             0x03c5
@@ -317,9 +318,9 @@ void set_palette() {
     outp(PALETTE_COLORS, 0); /* G */
     outp(PALETTE_COLORS, 0); /* B */
 
-    /* Rainbow palette (index 1-127) */
+    /* Rainbow palette (index 1-65) */
     /*for (angle = 0, i = 0; i < TEXT_PALETTE_SIZE; i++,angle += 5) {*/
-    for (angle = 0, i = 0; i < TEXT_PALETTE_SIZE; i++, angle += 2) {
+    for (angle = 0, i = 0; i < TEXT_PALETTE_SIZE; i++, angle += TEXT_PALETTE_ANGLE) {
         if (angle<60) {red = 255; green = ceil(angle*4.25-0.01); blue = 0;} else
         if (angle<120) {red = ceil((120-angle)*4.25-0.01); green = 255; blue = 0;} else
         if (angle<180) {red = 0, green = 255; blue = ceil((angle-120)*4.25-0.01);} else
@@ -332,8 +333,8 @@ void set_palette() {
         outp(PALETTE_COLORS, blue >> 2); /* B */
     }
 
-    /* Water-tinted rainbow palette (index 128-255) */
-    for (angle = 0, i = 0; i < TEXT_PALETTE_SIZE; i++, angle += 2) {
+    /* Water-tinted rainbow palette (index 65-129) */
+    for (angle = 0, i = 0; i < TEXT_PALETTE_SIZE; i++, angle += TEXT_PALETTE_ANGLE) {
         /*if (angle<60) {red = 255; green = ceil(angle*4.25-0.01); blue = 30;} else*/
         /*if (angle<120) {red = ceil((120-angle)*4.25-0.01); green = 255; blue = 60;} else*/
         if (angle<120) {red = 0, green = ceil((120-angle)*4.25-0.01); blue = 200;} else
@@ -341,7 +342,7 @@ void set_palette() {
         if (angle<240) {red = 0, green = ceil((240-angle)*4.25-0.01); blue = 255;} else
         if (angle<300) {red = ceil((angle-240)*4.25-0.01), green = 0; blue = 255;} else
         /*if (angle<240) {red = ceil((120-angle)*4.25-0.01); green = ceil((120-angle)*4.25-0.01); blue = ceil((120-angle)*4.25-0.01);} else*/
-                        {red = 255, green = 0; blue = ceil((360-angle)*4.25-0.01);}
+                        {red = 0, green = 0; blue = ceil((360-angle)*4.25-0.01);}
 
         outp(PALETTE_COLORS, red >> 2); /* R to 18-bit */
         outp(PALETTE_COLORS, green >> 2); /* G */
@@ -507,21 +508,24 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         /* Swap the two palette sets */
         if ((frame_counter & 1) == 0) {
             color_offset = 127;
+
             outp(PALETTE_WRITE_INDEX, 1);
             for (ci = 0; ci < 3*TEXT_PALETTE_SIZE; ++ci) {
                 outportb(PALETTE_COLORS, palette[ci]);
             }
+
             for (ci = 3*127; ci < 6*TEXT_PALETTE_SIZE; ++ci) {
                 outportb(PALETTE_COLORS, palette[ci]);
             }
         } else {
             color_offset = 0;
-            outp(PALETTE_WRITE_INDEX, 127*3);
-            for (ci = 0; ci < (3*TEXT_PALETTE_SIZE); ++ci) {
-                outportb(PALETTE_COLORS, palette[ci]);
-            }
+
             outp(PALETTE_WRITE_INDEX, 1);
             for (ci = 3*127; ci < 6*TEXT_PALETTE_SIZE; ++ci) {
+                outportb(PALETTE_COLORS, palette[ci]);
+            }
+
+            for (ci = 0; ci < (3*TEXT_PALETTE_SIZE); ++ci) {
                 outportb(PALETTE_COLORS, palette[ci]);
             }
         }
