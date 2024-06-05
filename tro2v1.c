@@ -394,7 +394,7 @@ void calculate_ztable(short *table, int table_size) {
 void calculate_distortion_table(short *table, int table_size) {
     int i;
     for (i = 0; i < table_size; ++i) {
-        table[i] = i % 12;
+        table[i] = (i % 12) >> 2;
     }
 }
 
@@ -718,13 +718,14 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         copy_destination = non_visible_page + ((210 * PLANE_WIDTH));
 
         for (y = 0; y < 28; ++y) {
-            distortion = distortion_table[y];
-            distortion_plane = distortion >> 2;
-            for (x = 0; x < PLANE_WIDTH - distortion; ++x) {
+            distortion_plane = distortion_table[y];
+            for (x = 0; x < PLANE_WIDTH - distortion_plane; ++x) {
                 temp = VGA[copy_source + x + distortion_plane];
                 VGA[copy_destination + x] = 0;
             }
 
+            /* Skip 8 rows, compresses the reflected image into a smaller area,
+             * as if looking at it from an angle */
             copy_source -= 8 * PLANE_WIDTH;
             copy_destination += PLANE_WIDTH;
         }
