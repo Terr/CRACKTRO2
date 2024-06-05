@@ -88,7 +88,7 @@ word *my_clock=(word *)0x0000046C;
 #define NUM_PIXELS 76800
 #define SCREEN_DEPTH 64
 #define PLANE_WIDTH 80
-#define NUM_PIXELS_PER_PLANE 16000
+#define NUM_PIXELS_PER_PLANE 16960
 
 #define PI 3.14159
 #define SINTABLE_SIZE 256
