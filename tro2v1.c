@@ -88,7 +88,6 @@ word *my_clock=(word *)0x0000046C;
 #define NUM_PIXELS 76800
 #define SCREEN_DEPTH 64
 #define PLANE_WIDTH 80
-#define NUM_PIXELS_PER_PLANE 16960
 
 #define PI 3.14159
 #define SINTABLE_SIZE 256
@@ -113,6 +112,14 @@ word *my_clock=(word *)0x0000046C;
 #define TEXT_Y_OFFSET 5
 /*#define WIGGLE 10*/
 #define WIGGLE 80
+
+#define REFLECTION_SOURCE_START 200 * PLANE_WIDTH
+#define REFLECTION_ROWS 24
+#define REFLECTION_ROW_STEP 8 * PLANE_WIDTH
+#define REFLECTION_DESTINATION_START (SCREEN_HEIGHT - REFLECTION_ROWS) * PLANE_WIDTH
+
+/* (Screen height - reflection area) * pixels per plane */
+#define NUM_PIXELS_PER_PLANE (SCREEN_HEIGHT - REFLECTION_ROWS) * PLANE_WIDTH
 
 typedef struct             /* the structure for a bitmap. */
 {
@@ -657,12 +664,6 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
                 } else if (start_x < 0) {
                     start_x += 4;
                 }
-                /* Default values for letters that are complete on screen */
-                r_from = start_x;
-                r_to = LETTER_WIDTH;
-
-                /*start_x = (letter.x - (letter.x & 3)) & 3;*/
-                /*start_x = letter.x & 3;*/
 
                 if (letter.x < 0) {
                     /* Left side of the letter is offscreen */
@@ -672,6 +673,10 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
                     /* Right side of the letter is offscreen */
                     r_from = start_x;
                     r_to = LETTER_WIDTH - ((letter.x + LETTER_WIDTH) - SCREEN_WIDTH);
+                } else {
+                    /* Letter is completely on screen */
+                    r_from = start_x;
+                    r_to = LETTER_WIDTH;
                 }
 
                 /*rx = letter.x + r_from + plane;*/
@@ -714,10 +719,10 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         outp(SC_INDEX, MAP_MASK);
         outp(SC_DATA, 0xFF);
 
-        copy_source = visible_page + ((200 * PLANE_WIDTH));
-        copy_destination = non_visible_page + ((210 * PLANE_WIDTH));
+        copy_source = visible_page + REFLECTION_SOURCE_START;
+        copy_destination = non_visible_page + REFLECTION_DESTINATION_START;
 
-        for (y = 0; y < 28; ++y) {
+        for (y = 0; y < REFLECTION_ROWS; ++y) {
             distortion_plane = distortion_table[y];
             for (x = 0; x < PLANE_WIDTH - distortion_plane; ++x) {
                 temp = VGA[copy_source + x + distortion_plane];
@@ -726,7 +731,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
 
             /* Skip 8 rows, compresses the reflected image into a smaller area,
              * as if looking at it from an angle */
-            copy_source -= 8 * PLANE_WIDTH;
+            copy_source -= REFLECTION_ROW_STEP;
             copy_destination += PLANE_WIDTH;
         }
 
