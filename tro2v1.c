@@ -42,7 +42,9 @@ word *my_clock=(word *)0x0000046C;
 #define NUM_COLORS 256
 /*#define TEXT_PALETTE_SIZE 90*/
 /*#define TEXT_PALETTE_COLORS 270*/
-#define TEXT_PALETTE_SIZE 64
+/*#define TEXT_PALETTE_SIZE 64*/
+/*#define TEXT_PALETTE_ANGLE 6*/
+#define TEXT_PALETTE_SIZE 127
 #define TEXT_PALETTE_ANGLE 6
 #define BLACK_PALETTE_SIZE 63
 #define STARS_PALETTE_SIZE 64
@@ -113,9 +115,9 @@ word *my_clock=(word *)0x0000046C;
 /*#define WIGGLE 10*/
 #define WIGGLE 80
 
-#define REFLECTION_SOURCE_START 200 * PLANE_WIDTH
-#define REFLECTION_ROWS 24
-#define REFLECTION_ROW_STEP 8 * PLANE_WIDTH
+#define REFLECTION_ROWS 32
+#define REFLECTION_ROW_STEP 6 * PLANE_WIDTH
+#define REFLECTION_SOURCE_START (SCREEN_HEIGHT - REFLECTION_ROWS - 1) * PLANE_WIDTH
 #define REFLECTION_DESTINATION_START (SCREEN_HEIGHT - REFLECTION_ROWS) * PLANE_WIDTH
 
 /* (Screen height - reflection area) * pixels per plane */
@@ -401,7 +403,8 @@ void calculate_ztable(short *table, int table_size) {
 void calculate_distortion_table(short *table, int table_size) {
     int i;
     for (i = 0; i < table_size; ++i) {
-        table[i] = (i % 12) >> 2;
+        /*table[i] = (i % 12) >> 2;*/
+        table[i] = (i % 10) >> 2;
     }
 }
 
@@ -421,7 +424,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     byte plane = 0;
     word ci = 0;
     byte cy = 0;
-    byte color_offset = 0;
+    byte color_offset = 0, alt_color_offset = 0;
     short text_index = 0;
     byte distortion;
     byte distortion_plane;
@@ -557,6 +560,8 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         /* All planes should already be selected because of the latch copy at the end of the loop */
         /*outport(SC_INDEX, ALL_PLANES);*/
         memset(&VGA[non_visible_page], color_offset, NUM_PIXELS_PER_PLANE);
+        /* Ensures that the reflection background is fully filled with the water color */
+        memset(&VGA[non_visible_page+NUM_PIXELS_PER_PLANE], alt_color_offset, 2560);
 
         /* First update the position of the letters */
         for (ri = 0; ri < NUM_LETTERS; ++ri) {
@@ -697,7 +702,9 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
                         if (bmp.data[bitmap_offset] > 0) {
                             /* Deze zet de kleur 'vast' per Y coordinaat */
                             /*VGA[screen_offset] = ((cy + j) & 255);*/
+
                             VGA[screen_offset] = (cy + j);
+
                             /* Dit kleurt per plane */
                             /* Rood geel groen blauw */
                             /*VGA[screen_offset] = 1 + (plane*32) & 127;*/
