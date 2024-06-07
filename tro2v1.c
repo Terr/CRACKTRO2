@@ -12,17 +12,24 @@ typedef unsigned char  byte;
 typedef unsigned short word;
 typedef unsigned long  dword;
 
-void extern PreparePlayer();
-void extern StopPlayer();
+/*#define PLAY_MUSIC*/
+
+#ifdef PLAY_MUSIC
+void extern PreparePlayer(void);
+void extern StopPlayer(void);
+/*void extern InitPlayer();*/
+/*void extern EndPlayer();*/
+/*void extern PlayMusic();*/
+#endif
 
 /*void extern runGame();*/
 
 #define USE_TIMER
 
 #ifdef USE_TIMER
-void extern ZTimerOn();
-void extern ZTimerOff();
-void extern ZTimerReport();
+void extern ZTimerOn(void);
+void extern ZTimerOff(void);
+void extern ZTimerReport(void);
 #endif
 
 /* VGA video memory segment */
@@ -313,7 +320,7 @@ void wait_for_retrace(void)
     while (!(inp(INPUT_STATUS) & VRETRACE)) {};
 }
 
-void set_palette() {
+void set_palette(void) {
     byte red, green, blue;
     short angle;
     int i = 0;
@@ -802,7 +809,7 @@ void validate_checksum() {
     }
 }
 
-void cracktro() {
+void cracktro(void) {
     int i;
     BITMAP bmp;
     short sintable[SINTABLE_SIZE];
@@ -837,11 +844,15 @@ void cracktro() {
     enable();
     set_palette();
 
+#ifdef PLAY_MUSIC
     PreparePlayer();
+#endif
 
     mainloop(bmp, sintable, ztable, distortion_table);
 
+#ifdef PLAY_MUSIC
     StopPlayer();
+#endif
 
     free(bmp.data);
 
