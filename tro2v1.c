@@ -108,24 +108,24 @@ word *my_clock=(word *)0x0000046C;
 #define MAX(x,y) ((x) > (y) ? (x) : (y))
 #define MIN(x,y) ((x) < (y) ? (x) : (y))
 
-#define NUM_LETTERS 10
+#define NUM_LETTERS 13
 #define NUM_STARS 69
 /*#define NUM_STARS 1*/
 #define STAR_SPEED 1
-#define BITMAP_WIDTH 1152
+#define BITMAP_WIDTH 1080
 #define BITMAP_HEIGHT 24
 #define LETTER_SCROLL_SPEED 2
-#define LETTER_WIDTH 26
+#define LETTER_WIDTH 24
 #define LETTER_HEIGHT 24
-#define LETTER_SPACE 1122
+#define LETTER_SPACE 1056
 #define LETTER_PADDING 4
-#define TEXT_Y_OFFSET 5
+#define TEXT_Y_OFFSET 20
 /*#define WIGGLE 10*/
-#define WIGGLE 60
+#define WIGGLE 70
 
-#define REFLECTION_ROWS 32
+#define REFLECTION_ROWS 40
 /*#define REFLECTION_ROW_STEP 6 * PLANE_WIDTH*/
-#define REFLECTION_ROW_STEP 480
+#define REFLECTION_ROW_STEP 320
 /*#define REFLECTION_SOURCE_START (SCREEN_HEIGHT - REFLECTION_ROWS - 21) * PLANE_WIDTH*/
 #define REFLECTION_SOURCE_START 14960
 /*#define REFLECTION_DESTINATION_START (SCREEN_HEIGHT - REFLECTION_ROWS - 20) * PLANE_WIDTH*/
@@ -159,13 +159,13 @@ typedef struct
 } STAR;
 
 /*char text[] =   "                 NOSTALGIA PROUDLY PRESENTZ: SIMCITY V1.07 +1 BY MAXIS!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 TWINBEARD BRACKEEN AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";*/
-char text[] =   "OWO WHATS THIS ANOTHER NOSTALGIA RELEASE# YOU BET!        NOSTALGIA PROUDLY PRESENTZ: SID MEIERS CIVILIZATION V474.05 +4 BY MICROPROSE!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 ABRASH BRACKEEN QBMIKEHAWK AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";
+char text[] = "         OWO WHATS THIS# ANOTHER NOSTALGIA RELEASE# YOU BET!        NOSTALGIA PROUDLY PRESENTZ: SID MEIERS CIVILIZATION V474.05 +4 BY MICROPROSE!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ FLY OUT TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 ABRASH BRACKEEN QBMIKEHAWK AND EVERYONE ELSE WHO DESIREZ A GREET!        CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH        HACK THE PLANET!          MMXXIV  ";
 /*char text[] = "         ABCDEFGHIJKLMNOPQRSTUVWXYZ";*/
 /*char text[] = " BRBRBRBRBRBR HERE COMES THE CHINESE EARTHQUAKE";*/
 /*char text[] = "1 2 3 4 5 6 7 8 9 0";*/
-/*char text[] = "ACAB ACAB ACAB ACAB ACAB ACAB";*/
-/*char text[] = "ACAB ACAB";*/
-/*char text[] = "ACAB";*/
+/*char text[] = "ACAB ACAB ACAB ACAB ACAB ACAB ";*/
+/*char text[] = "ACAB ACAB ";*/
+/*char text[] = "ACAB ";*/
 /*char text[] = "  #### ????    ,./?!  ACAB";*/
 
 /*static byte global_sin_index = 0;*/
@@ -469,31 +469,31 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         letters[ri].x = (short)((LETTER_WIDTH + LETTER_PADDING) * ri);
 
         if (text[text_index] >= 65) {
-            letters[ri].letter_offset = (short)((text[text_index] - 65) << 5);
+            letters[ri].letter_offset = (short)((text[text_index] - 65) << 4) + (short)((text[text_index] - 65) << 3);
         } else if (text[text_index] >= 48) {
             /* Digits + colon */
-            letters[ri].letter_offset = (short)((text[text_index] - 22) << 5);
+            letters[ri].letter_offset = (short)((text[text_index] - 22) << 4) + ((text[text_index] - 22) << 3);
         } else if (text[text_index] == 33) {
             /* Exclamation mark */
-            letters[ri].letter_offset = 1184;
+            letters[ri].letter_offset = 888;
         } else if (text[text_index] == 43) {
             /* Plus sign */
-            letters[ri].letter_offset = 1216;
+            letters[ri].letter_offset = 912;
         } else if (text[text_index] == 46) {
             /* Dot */
-            letters[ri].letter_offset = 1248;
+            letters[ri].letter_offset = 936;
         } else if (text[text_index] == 45) {
             /* Minus sign */
-            letters[ri].letter_offset = 1280;
+            letters[ri].letter_offset = 960;
         } else if (text[text_index] == 47) {
             /* Slash */
-            letters[ri].letter_offset = 1312;
+            letters[ri].letter_offset = 984;
         } else if (text[text_index] == 44) {
             /* Comma */
-            letters[ri].letter_offset = 1344;
+            letters[ri].letter_offset = 1008;
         } else if (text[text_index] == 35) {
             /* Question mark, but ASCII code of '?' isn't recognize so use a '#' instead */
-            letters[ri].letter_offset = 1372;
+            letters[ri].letter_offset = 1032;
         } else {
             /* Space */
             letters[ri].letter_offset = LETTER_SPACE;
@@ -530,10 +530,6 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         alt_palette[ci] = inp(PALETTE_COLORS);
     }
     enable();
-
-    /*for (ci = 0; ci < TEXT_PALETTE_COLORS; ++ci) {*/
-        /*fprintf(log, "%d\n", palette[ci]);*/
-    /*}*/
 
     outport(SC_INDEX, ALL_PLANES);
     disable();
@@ -636,31 +632,31 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
                 letter.x = LETTER_PADDING + (LETTER_WIDTH + LETTER_PADDING) * (NUM_LETTERS - 1);
 
                 if (text[text_index] >= 65) {
-                    letter.letter_offset = (short)((text[text_index] - 65) << 5);
+                    letter.letter_offset = (short)((text[text_index] - 65) << 4) + (short)((text[text_index] - 65) << 3);
                 } else if (text[text_index] >= 48) {
                     /* Digits + colon */
-                    letter.letter_offset = (short)((text[text_index] - 22) << 5);
+                    letter.letter_offset = (short)((text[text_index] - 22) << 4) + ((text[text_index] - 22) << 3);
                 } else if (text[text_index] == 33) {
                     /* Exclamation mark */
-                    letter.letter_offset = 1184;
+                    letter.letter_offset = 888;
                 } else if (text[text_index] == 43) {
                     /* Plus sign */
-                    letter.letter_offset = 1216;
+                    letter.letter_offset = 912;
                 } else if (text[text_index] == 46) {
                     /* Dot */
-                    letter.letter_offset = 1248;
+                    letter.letter_offset = 936;
                 } else if (text[text_index] == 45) {
                     /* Minus sign */
-                    letter.letter_offset = 1280;
+                    letter.letter_offset = 960;
                 } else if (text[text_index] == 47) {
                     /* Slash */
-                    letter.letter_offset = 1312;
+                    letter.letter_offset = 984;
                 } else if (text[text_index] == 44) {
                     /* Comma */
-                    letter.letter_offset = 1344;
+                    letter.letter_offset = 1008;
                 } else if (text[text_index] == 35) {
                     /* Question mark, but ASCII code of '?' isn't recognize so use a '#' instead */
-                    letter.letter_offset = 1372;
+                    letter.letter_offset = 1032;
                 } else {
                     /* Space */
                     letter.letter_offset = LETTER_SPACE;
@@ -721,16 +717,8 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
 
                 /*start_x = ((letter.x / 4) * 4) - letter.x;*/
                 start_x = (letter.x - (letter.x & 3)) - letter.x;
-                if (start_x == plane - 5) {
-                    /*
-                    * This is a work around for the fact that we sometimes start drawing a letter 2 pixels in (because letter speed is 2), so letter's column 2 at plane 0, etc.
-                    * This means that we skip two drawing pixels.
-                    *
-                    * Because the first column of a letter sprite is always empty, we only need to draw one extra column: the first potentially filled left column of the letter.
-                    * */
-                } else if (start_x < 0) {
-                    start_x += 4;
-                }
+
+                /*fprintf(log, "%d -> %d\n", letter.x, start_x);*/
 
                 if (letter.x < 0) {
                     /* Left side of the letter is offscreen */
@@ -746,8 +734,12 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
                     r_to = LETTER_WIDTH;
                 }
 
-                /*rx = letter.x + r_from + plane;*/
+                if (r_from + plane < 0) {
+                    r_from += 4;
+                }
+
                 for (i = r_from + plane; i < r_to; i = i + 4) {
+
                     /* This holds the column to draw on the currently selected plane */
                     rx = letter.x + i;
 
