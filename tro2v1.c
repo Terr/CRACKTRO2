@@ -112,24 +112,30 @@ word *my_clock=(word *)0x0000046C;
 #define NUM_STARS 69
 /*#define NUM_STARS 1*/
 #define STAR_SPEED 1
-#define BITMAP_WIDTH 1440
-#define BITMAP_HEIGHT 30
+#define BITMAP_WIDTH 1152
+#define BITMAP_HEIGHT 24
 #define LETTER_SCROLL_SPEED 2
-#define LETTER_WIDTH 32
-#define LETTER_HEIGHT 30
-#define LETTER_SPACE 1408
+#define LETTER_WIDTH 26
+#define LETTER_HEIGHT 24
+#define LETTER_SPACE 1122
 #define LETTER_PADDING 4
 #define TEXT_Y_OFFSET 5
 /*#define WIGGLE 10*/
-#define WIGGLE 80
+#define WIGGLE 60
 
 #define REFLECTION_ROWS 32
-#define REFLECTION_ROW_STEP 6 * PLANE_WIDTH
-#define REFLECTION_SOURCE_START (SCREEN_HEIGHT - REFLECTION_ROWS - 1) * PLANE_WIDTH
-#define REFLECTION_DESTINATION_START (SCREEN_HEIGHT - REFLECTION_ROWS) * PLANE_WIDTH
+/*#define REFLECTION_ROW_STEP 6 * PLANE_WIDTH*/
+#define REFLECTION_ROW_STEP 480
+/*#define REFLECTION_SOURCE_START (SCREEN_HEIGHT - REFLECTION_ROWS - 21) * PLANE_WIDTH*/
+#define REFLECTION_SOURCE_START 14960
+/*#define REFLECTION_DESTINATION_START (SCREEN_HEIGHT - REFLECTION_ROWS - 20) * PLANE_WIDTH*/
+#define REFLECTION_DESTINATION_START 15040
 
-/* (Screen height - reflection area) * pixels per plane */
-#define NUM_PIXELS_PER_PLANE (SCREEN_HEIGHT - REFLECTION_ROWS) * PLANE_WIDTH
+/* (Screen height - reflection rows - margin) * pixels per plane */
+/*#define UPPER_AREA_PLANE_PIXELS (SCREEN_HEIGHT - REFLECTION_ROWS - 20) * PLANE_WIDTH*/
+#define UPPER_AREA_PLANE_PIXELS 15040
+/* (Screen height - (Screen height - reflection rows - margin)) * pixels per plane */
+#define REFLECTION_AREA_PLANE_PIXELS 4160
 
 typedef struct             /* the structure for a bitmap. */
 {
@@ -615,9 +621,9 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         /* Clear page */
         /* All planes should already be selected because of the latch copy at the end of the loop */
         /*outport(SC_INDEX, ALL_PLANES);*/
-        memset(&VGA[non_visible_page], color_offset, NUM_PIXELS_PER_PLANE);
+        memset(&VGA[non_visible_page], color_offset, UPPER_AREA_PLANE_PIXELS);
         /* Ensures that the reflection background is fully filled with the water color */
-        memset(&VGA[non_visible_page+NUM_PIXELS_PER_PLANE], alt_color_offset, 2560);
+        memset(&VGA[non_visible_page+UPPER_AREA_PLANE_PIXELS], alt_color_offset, REFLECTION_AREA_PLANE_PIXELS);
 
         /* First update the position of the letters */
         for (ri = 0; ri < NUM_LETTERS; ++ri) {
@@ -688,7 +694,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
 
         /* TODO */
         /*flip_pages(&visible_page, &non_visible_page);*/
-        /*memset(&VGA[visible_page], 0, NUM_PIXELS_PER_PLANE);*/
+        /*memset(&VGA[visible_page], 0, UPPER_AREA_PLANE_PIXELS);*/
 
         /* Draw letters and stars */
         for (plane = 0; plane < 4; ++plane) {
