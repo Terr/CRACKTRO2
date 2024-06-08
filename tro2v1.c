@@ -51,11 +51,12 @@ word *my_clock=(word *)0x0000046C;
 /*#define TEXT_PALETTE_COLORS 270*/
 /*#define TEXT_PALETTE_SIZE 64*/
 /*#define TEXT_PALETTE_ANGLE 6*/
-#define TEXT_PALETTE_SIZE 127
+#define TEXT_PALETTE_SIZE 64
 #define TEXT_PALETTE_ANGLE 6
 #define BLACK_PALETTE_SIZE 63
 #define STARS_PALETTE_SIZE 64
-#define TEXT_PALETTE_COLORS 768
+/* 2 * TEXT_PALETTE_SIZE * 3 */
+#define TEXT_PALETTE_COLORS 384
 
 #define SC_INDEX            0x03c4    /* VGA sequence controller */
 #define SC_DATA             0x03c5
@@ -443,12 +444,17 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     word copy_source, copy_destination;
     /*byte r, g, b;*/
     byte palette[TEXT_PALETTE_COLORS];
+    byte alt_palette[TEXT_PALETTE_COLORS];
     /* VGA pages */
     word temp = 0;
     word visible_page = 0;
     word non_visible_page = NUM_PIXELS / 4;
     word high_address, low_address;
     /*FILE *log = fopen("debug.log", "w");*/
+    word palette_seg = FP_SEG(palette);
+    word palette_off = FP_OFF(palette);
+    word alt_palette_seg = FP_SEG(alt_palette);
+    word alt_palette_off = FP_OFF(alt_palette);
 
     /* Initial letters */
     for (ri = 0; ri < NUM_LETTERS; ++ri) {
@@ -506,6 +512,15 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     for (ci = 0; ci < TEXT_PALETTE_COLORS; ++ci) {
         palette[ci] = inp(PALETTE_COLORS);
     }
+
+    outp(PALETTE_READ_INDEX, TEXT_PALETTE_SIZE);
+    for (ci = 0; ci < 3 * TEXT_PALETTE_SIZE; ++ci) {
+        alt_palette[ci] = inp(PALETTE_COLORS);
+    }
+    outp(PALETTE_READ_INDEX, 0);
+    for (ci = 3 * TEXT_PALETTE_SIZE; ci < TEXT_PALETTE_COLORS; ++ci) {
+        alt_palette[ci] = inp(PALETTE_COLORS);
+    }
     enable();
 
     /*for (ci = 0; ci < TEXT_PALETTE_COLORS; ++ci) {*/
@@ -513,47 +528,80 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     /*}*/
 
     outport(SC_INDEX, ALL_PLANES);
+    disable();
 
     while (1) {
         #ifdef USE_TIMER
         ZTimerOn();
         #endif
 
+        /* Interrupts are still disabled at this point */
+        /* Wait for start of next vertical trace(?) */
+        /*while (!(inp(INPUT_STATUS) & VRETRACE));*/
+
+        if ((frame_counter & 1) == 0) {
+            color_offset = TEXT_PALETTE_SIZE;
+            alt_color_offset = 0;
+
+            asm push ds
+            asm push es
+
+            asm mov ax, palette_seg
+            asm mov es, ax
+            asm mov dx, palette_off
+            asm mov ax, 1012h
+            asm sub bx, bx
+            asm mov cx, 80h /* 128 colors */
+            asm int 10h
+
+            asm pop es
+            asm pop ds
+        } else {
+            color_offset = 0;
+            alt_color_offset = TEXT_PALETTE_SIZE;
+
+            asm push ds
+            asm push es
+
+            asm mov ax, alt_palette_seg
+            asm mov es, ax
+            asm mov dx, alt_palette_off
+            asm mov ax, 1012h
+            asm sub bx, bx
+            asm mov cx, 80h /* 128 colors */
+            asm int 10h
+
+            asm pop es
+            asm pop ds
+        }
+        enable();
+
         /* Swap the two palette sets */
+        /*
         disable();
         if ((frame_counter & 1) == 0) {
             color_offset = TEXT_PALETTE_SIZE;
+            alt_color_offset = 0;
 
             outp(PALETTE_WRITE_INDEX, 0);
-            for (ci = 0; ci < 3*TEXT_PALETTE_SIZE;) {
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
-            }
-
-            for (ci = 3*TEXT_PALETTE_SIZE; ci < 6*TEXT_PALETTE_SIZE;) {
+            for (ci = 0; ci < 6 * TEXT_PALETTE_SIZE;) {
                 outportb(PALETTE_COLORS, palette[ci++]);
                 outportb(PALETTE_COLORS, palette[ci++]);
                 outportb(PALETTE_COLORS, palette[ci++]);
             }
         } else {
             color_offset = 0;
+            alt_color_offset = TEXT_PALETTE_SIZE;
 
             outp(PALETTE_WRITE_INDEX, 0);
-            for (ci = 3*TEXT_PALETTE_SIZE; ci < 6*TEXT_PALETTE_SIZE;) {
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
-            }
-
-            for (ci = 0; ci < (3*TEXT_PALETTE_SIZE);) {
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
+            for (ci = 0; ci < 6 * TEXT_PALETTE_SIZE;) {
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
             }
         }
         enable();
-
+        */
 
         /* Read keyboard input */
         geninterrupt(KEYBOARD_INT);
@@ -758,9 +806,14 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         visible_page = non_visible_page;
         non_visible_page = temp;
 
+        #ifdef USE_TIMER
+        ZTimerOff();
+        #endif
+
         high_address = HIGH_ADDRESS | (visible_page & 0xFF00);
         low_address = LOW_ADDRESS | (visible_page << 8);
 
+        disable();
         /* Wait for end of current vertical trace(?) */
         while ((inp(INPUT_STATUS) & DISPLAY_ENABLE));
         outport(CRTC_INDEX, high_address);
@@ -773,9 +826,6 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         /*++global_sin_index;*/
         ++frame_counter;
 
-        #ifdef USE_TIMER
-        ZTimerOff();
-        #endif
         /*break;*/
     }
 }
