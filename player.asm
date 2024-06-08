@@ -202,7 +202,8 @@ _EndPlayer:	push	ax
 ; to maintain accurate music playback.  Refer to accompanying timer source-code
 ; for ways of providing a 50/sec timer service.
 ;컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴컴
-PlayMusic:	pusha
+PUBLIC _PlayMusic
+_PlayMusic:	pusha
 		push	ds
 
 		mov	ds,cs:ModSeg	; segment of module

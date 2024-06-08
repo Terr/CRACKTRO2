@@ -117,7 +117,7 @@ _ResetInt:	push	ax es
 ;ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ
 PlayerInt:	push	ax
 
-		call	PlayMusic
+		call	_PlayMusic
 
 	; see if we have passed 18.2/s mark
 	@@lx:	mov	ax,TimerSteps		; this no. of steps per int.

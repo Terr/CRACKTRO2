@@ -12,7 +12,7 @@ typedef unsigned char  byte;
 typedef unsigned short word;
 typedef unsigned long  dword;
 
-/*#define PLAY_MUSIC*/
+#define PLAY_MUSIC
 
 #ifdef PLAY_MUSIC
 void extern PreparePlayer(void);
@@ -24,7 +24,7 @@ void extern StopPlayer(void);
 
 /*void extern runGame();*/
 
-#define USE_TIMER
+/*#define USE_TIMER*/
 
 #ifdef USE_TIMER
 void extern ZTimerOn(void);
