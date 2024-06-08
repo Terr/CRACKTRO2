@@ -12,7 +12,9 @@ typedef unsigned char  byte;
 typedef unsigned short word;
 typedef unsigned long  dword;
 
-#define PLAY_MUSIC
+/*#define PLAY_MUSIC*/
+#define USE_TIMER
+#define USE_ASM_PALETTE_SWAP
 
 #ifdef PLAY_MUSIC
 void extern PreparePlayer(void);
@@ -23,8 +25,6 @@ void extern StopPlayer(void);
 #endif
 
 /*void extern runGame();*/
-
-/*#define USE_TIMER*/
 
 #ifdef USE_TIMER
 void extern ZTimerOn(void);
@@ -451,10 +451,12 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     word non_visible_page = NUM_PIXELS / 4;
     word high_address, low_address;
     /*FILE *log = fopen("debug.log", "w");*/
+#ifdef USE_ASM_PALETTE_SWAP
     word palette_seg = FP_SEG(palette);
     word palette_off = FP_OFF(palette);
     word alt_palette_seg = FP_SEG(alt_palette);
     word alt_palette_off = FP_OFF(alt_palette);
+#endif
 
     /* Initial letters */
     for (ri = 0; ri < NUM_LETTERS; ++ri) {
@@ -539,6 +541,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         /* Wait for start of next vertical trace(?) */
         /*while (!(inp(INPUT_STATUS) & VRETRACE));*/
 
+#ifdef USE_ASM_PALETTE_SWAP
         if ((frame_counter & 1) == 0) {
             color_offset = TEXT_PALETTE_SIZE;
             alt_color_offset = 0;
@@ -574,11 +577,8 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
             asm pop es
             asm pop ds
         }
-        enable();
-
+#else
         /* Swap the two palette sets */
-        /*
-        disable();
         if ((frame_counter & 1) == 0) {
             color_offset = TEXT_PALETTE_SIZE;
             alt_color_offset = 0;
@@ -600,8 +600,9 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
                 outportb(PALETTE_COLORS, alt_palette[ci++]);
             }
         }
+#endif
+
         enable();
-        */
 
         /* Read keyboard input */
         geninterrupt(KEYBOARD_INT);
@@ -806,12 +807,12 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         visible_page = non_visible_page;
         non_visible_page = temp;
 
+        high_address = HIGH_ADDRESS | (visible_page & 0xFF00);
+        low_address = LOW_ADDRESS | (visible_page << 8);
+
         #ifdef USE_TIMER
         ZTimerOff();
         #endif
-
-        high_address = HIGH_ADDRESS | (visible_page & 0xFF00);
-        low_address = LOW_ADDRESS | (visible_page << 8);
 
         disable();
         /* Wait for end of current vertical trace(?) */
