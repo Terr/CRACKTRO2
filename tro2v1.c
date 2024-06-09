@@ -6,7 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "defines.h"
+#include "vga.h"
 #include "letters.h"
+#include "precalc.h"
 
 typedef unsigned char  byte;
 typedef unsigned short word;
@@ -44,104 +47,6 @@ byte far *VGA=(byte far *)0xA0000000L;
 /* 18.2Hz system clock */
 word *my_clock=(word *)0x0000046C;
 
-#define SET_MODE 0x00
-#define VIDEO_INT 0x10
-#define KEYBOARD_INT 0x9
-#define VGA_256_COLOR_MODE 0x13
-#define TEXT_MODE 0x03
-#define INPUT_STATUS 0x03da
-#define VRETRACE 0x08
-#define NUM_COLORS 256
-/*#define TEXT_PALETTE_SIZE 90*/
-/*#define TEXT_PALETTE_COLORS 270*/
-/*#define TEXT_PALETTE_SIZE 64*/
-/*#define TEXT_PALETTE_ANGLE 6*/
-#define TEXT_PALETTE_SIZE 64
-#define TEXT_PALETTE_ANGLE 6
-#define BLACK_PALETTE_SIZE 63
-#define STARS_PALETTE_SIZE 64
-/* 2 * TEXT_PALETTE_SIZE * 3 */
-#define TEXT_PALETTE_COLORS 384
-
-#define SC_INDEX            0x03c4    /* VGA sequence controller */
-#define SC_DATA             0x03c5
-#define PALETTE_MASK_REG    0x03C6
-#define PALETTE_READ_INDEX  0x03C7
-#define PALETTE_WRITE_INDEX 0x03C8
-#define PALETTE_COLORS      0x03C9
-#define GC_INDEX            0x03ce    /* VGA graphics controller */
-#define GC_DATA             0x03cf
-#define CRTC_INDEX          0x03d4    /* VGA CRT controller */
-#define CRTC_DATA           0x03d5
-#define MISC_OUTPUT         0x03c2
-
-#define MAP_MASK            0x02      /* Sequence controller registers */
-#define ALL_PLANES          0xff02
-#define MEMORY_MODE         0x04
-
-#define LATCHES_ON          0x0008    /* Graphics controller registers */
-#define LATCHES_OFF         0xff08
-
-#define HIGH_ADDRESS        0x0C
-#define LOW_ADDRESS         0x0D
-
-#define V_TOTAL             0x06      /* CRT controller registers */
-#define OVERFLOW            0x07
-#define MAX_SCAN_LINE       0x09
-#define V_RETRACE_START     0x10
-#define V_RETRACE_END       0x11
-#define V_DISPLAY_END       0x12
-#define UNDERLINE_LOCATION  0x14
-#define V_BLANK_START       0x15
-#define V_BLANK_END         0x16
-#define MODE_CONTROL        0x17
-
-#define DISPLAY_ENABLE      0x01      /* VGA input status bits */
-
-#define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 240
-#define NUM_PIXELS 76800
-#define SCREEN_DEPTH 64
-#define PLANE_WIDTH 80
-
-#define PI 3.14159
-#define SINTABLE_SIZE 256
-#define ZTABLE_FIXED_FRAC 6
-
-#define SETPIX(x,y,c) *(VGA+(x)+(y<<8)+(y<<6))=c
-#define GETPIX(x,y) *(VGA+(x)++(y<<8)+(y<<6))
-#define MAX(x,y) ((x) > (y) ? (x) : (y))
-#define MIN(x,y) ((x) < (y) ? (x) : (y))
-
-#define NUM_LETTERS 13
-#define NUM_STARS 69
-/*#define NUM_STARS 1*/
-#define STAR_SPEED 1
-#define BITMAP_WIDTH 1080
-#define BITMAP_HEIGHT 24
-#define LETTER_SCROLL_SPEED 2
-#define LETTER_WIDTH 24
-#define LETTER_HEIGHT 24
-#define LETTER_SPACE 1056
-#define LETTER_PADDING 4
-#define TEXT_Y_OFFSET 20
-/*#define WIGGLE 10*/
-#define WIGGLE 70
-
-#define REFLECTION_ROWS 40
-/*#define REFLECTION_ROW_STEP 6 * PLANE_WIDTH*/
-#define REFLECTION_ROW_STEP 320
-/*#define REFLECTION_SOURCE_START (SCREEN_HEIGHT - REFLECTION_ROWS - 21) * PLANE_WIDTH*/
-#define REFLECTION_SOURCE_START 14960
-/*#define REFLECTION_DESTINATION_START (SCREEN_HEIGHT - REFLECTION_ROWS - 20) * PLANE_WIDTH*/
-#define REFLECTION_DESTINATION_START 15040
-
-/* (Screen height - reflection rows - margin) * pixels per plane */
-/*#define UPPER_AREA_PLANE_PIXELS (SCREEN_HEIGHT - REFLECTION_ROWS - 20) * PLANE_WIDTH*/
-#define UPPER_AREA_PLANE_PIXELS 15040
-/* (Screen height - (Screen height - reflection rows - margin)) * pixels per plane */
-#define REFLECTION_AREA_PLANE_PIXELS 4160
-
 typedef struct             /* the structure for a bitmap. */
 {
   word width;
@@ -176,85 +81,59 @@ char text[] = "         OWO WHATS THIS# ANOTHER NOSTALGIA RELEASE# YOU BET!     
 /*static byte global_sin_index = 0;*/
 static int frame_counter = 0;
 
-void set_mode(byte mode)
-{
-    union REGS regs;
-    regs.h.ah = SET_MODE;
-    regs.h.al = mode;
-    int86(VIDEO_INT, &regs, &regs);
-}
+#define KEYBOARD_INT 0x9
+#define NUM_COLORS 256
 
-/* Unchain memory to enable planar addressing, aka Mode Y */
-void unchain_vga(void)
-{
-    word i;
-    dword *ptr=(dword *)VGA;            /* used for faster screen clearing */
+#define TEXT_PALETTE_SIZE 64
+#define TEXT_PALETTE_ANGLE 6
+#define BLACK_PALETTE_SIZE 63
+#define STARS_PALETTE_SIZE 64
+/* 2 * TEXT_PALETTE_SIZE * 3 */
+#define TEXT_PALETTE_COLORS 384
 
-    outp(SC_INDEX, MEMORY_MODE);       /* turn off chain-4 mode */
-    outp(SC_DATA, 0x06);
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 240
+#define NUM_PIXELS 76800
+#define SCREEN_DEPTH 64
+#define PLANE_WIDTH 80
 
-    /* Reset clock to 25MHz @ 60Hz, not stricly necessary but Abrash does it in his Mode X example */
-    outp(MISC_OUTPUT, 0xE3);
+#define PI 3.14159
+#define SINTABLE_SIZE 256
+#define ZTABLE_FIXED_FRAC 6
 
-    /* Undo reset(?) */
-    outp(SC_INDEX, 0x00);
-    outp(SC_DATA, 0x03);
+#define SETPIX(x,y,c) *(VGA+(x)+(y<<8)+(y<<6))=c
+#define GETPIX(x,y) *(VGA+(x)++(y<<8)+(y<<6))
+#define MAX(x,y) ((x) > (y) ? (x) : (y))
+#define MIN(x,y) ((x) < (y) ? (x) : (y))
 
-    /* outpw() is not available in Turbo C */
-    outport(SC_INDEX, ALL_PLANES);      /* set map mask to all 4 planes */
+#define NUM_LETTERS 13
+#define NUM_STARS 69
+/*#define NUM_STARS 1*/
+#define STAR_SPEED 1
+#define BITMAP_WIDTH 1080
+#define BITMAP_HEIGHT 24
+#define LETTER_SCROLL_SPEED 3
+#define LETTER_WIDTH 24
+#define LETTER_HEIGHT 24
+#define LETTER_SPACE 1056
+#define LETTER_PADDING 4
+#define TEXT_Y_OFFSET 20
+/*#define WIGGLE 10*/
+#define WIGGLE 70
 
-    for(i = 0; i < 0x8000; ++i) {       /* clear all 256K of memory */
-                                        /* TODO is it actually 256k? 0x8000 * 4 = 128k */
-        *ptr++ = 0;
-    }
+#define REFLECTION_ROWS 40
+/*#define REFLECTION_ROW_STEP 6 * PLANE_WIDTH*/
+#define REFLECTION_ROW_STEP 320
+/*#define REFLECTION_SOURCE_START (SCREEN_HEIGHT - REFLECTION_ROWS - 21) * PLANE_WIDTH*/
+#define REFLECTION_SOURCE_START 14960
+/*#define REFLECTION_DESTINATION_START (SCREEN_HEIGHT - REFLECTION_ROWS - 20) * PLANE_WIDTH*/
+#define REFLECTION_DESTINATION_START 15040
 
-    outp(CRTC_INDEX, UNDERLINE_LOCATION);/* turn off long mode (aka dword mode) */
-    outp(CRTC_DATA, 0x00);
-
-    outp(CRTC_INDEX, MODE_CONTROL);      /* turn on byte mode */
-    outp(CRTC_DATA, 0xE3);
-}
-
-void set_mode_x(void)
-{
-    byte vsync_end = 0;
-    /* Remove write protect bits on various VGA registers */
-    outp(CRTC_INDEX, 0x11);
-    vsync_end = inp(CRTC_DATA) & 0x7f;
-    outp(CRTC_DATA, vsync_end);
-
-    outp(CRTC_INDEX, V_RETRACE_END);
-    outp(CRTC_DATA, 0x2c);
-
-    outp(CRTC_INDEX, V_TOTAL);
-    outp(CRTC_DATA, 0x0D);
-
-    outp(CRTC_INDEX, OVERFLOW);
-    outp(CRTC_DATA, 0x3E);
-
-    outp(CRTC_INDEX, MAX_SCAN_LINE); /* "Cell height" */
-    outp(CRTC_DATA, 0x41);
-
-    outp(CRTC_INDEX, V_RETRACE_START);
-    outp(CRTC_DATA, 0xEA);
-
-    outp(CRTC_INDEX, V_RETRACE_END);
-    outp(CRTC_DATA, 0xAC);
-
-    outp(CRTC_INDEX, V_DISPLAY_END);
-    outp(CRTC_DATA, 0xDF);
-
-    outp(CRTC_INDEX, V_BLANK_START);
-    outp(CRTC_DATA, 0xE7);
-
-    outp(CRTC_INDEX, V_BLANK_END);
-    outp(CRTC_DATA, 0x06);
-
-    /* Set write protect back */
-    outp(CRTC_INDEX, 0x11);
-    vsync_end = inp(CRTC_DATA) & 0x80;
-    outp(CRTC_DATA, vsync_end);
-}
+/* (Screen height - reflection rows - margin) * pixels per plane */
+/*#define UPPER_AREA_PLANE_PIXELS (SCREEN_HEIGHT - REFLECTION_ROWS - 20) * PLANE_WIDTH*/
+#define UPPER_AREA_PLANE_PIXELS 15040
+/* (Screen height - (Screen height - reflection rows - margin)) * pixels per plane */
+#define REFLECTION_AREA_PLANE_PIXELS 4160
 
 void unrle(byte* compressed, BITMAP *bmp) {
     unsigned int i, j;
@@ -394,37 +273,6 @@ void set_palette(void) {
         /*outp(PALETTE_COLORS, i);*/
         /*outp(PALETTE_COLORS, i);*/
     /*}*/
-}
-
-void calculate_sintable(short *table, int table_size)
-{
-    int i;
-    for (i = 0; i < table_size; ++i) {
-        /*table[i] = TEXT_Y_OFFSET + WIGGLE * sin((float) ((PI / 256) * i) * 8);*/
-        /*table[i] = TEXT_Y_OFFSET + WIGGLE * sin((float) ((PI / 512) * i) * 8);*/
-
-        /*table[i] = TEXT_Y_OFFSET + WIGGLE * sin((float) ((PI / 512) * i) * 4);*/
-        table[i] = TEXT_Y_OFFSET + WIGGLE * (1 + (sin(((PI / 512) * i) * 4)) / 1);
-        table[i] = ((table[i]) << 6) +  ((table[i]) << 4);
-    }
-}
-
-void calculate_ztable(short *table, int table_size) {
-    int i;
-    float dividend = (float)SCREEN_DEPTH;
-    table[0] = 0.0;
-    for (i = 1; i < table_size; ++i) {
-        /*table[i] = (dividend / (i * 1)) * (1 << ZTABLE_FIXED_FRAC);*/
-        table[i] = (dividend / (i * 1));
-    }
-}
-
-void calculate_distortion_table(short *table, int table_size) {
-    int i;
-    for (i = 0; i < table_size; ++i) {
-        /*table[i] = (i % 12) >> 2;*/
-        table[i] = (i % 10) >> 2;
-    }
 }
 
 void flip_pages(word *visible_page, word *non_visible_page) {
@@ -893,7 +741,7 @@ void cracktro(void) {
 
     disable(); /* Disable interrupts while switching display mode */
     set_mode(VGA_256_COLOR_MODE);
-    unchain_vga();
+    unchain_vga(VGA);
     set_mode_x();
     enable();
     set_palette();
