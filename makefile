@@ -3,8 +3,8 @@ LIBPATH = C:\DEV\TC\LIB
 
 
 vga9.exe: tro2v1.obj radlib.obj precalc.obj vga.obj
-	 tlink @tlink.rsp
-	 #tlink $(LIBPATH)\C0L radlib.obj pcztfar.obj tro2v1.obj,vga9.exe,,$(LIBPATH)\EMU $(LIBPATH)\MATHL $(LIBPATH)\CL
+	tlink C:\DEV\TC\LIB\C0L @objects.rsp,vga9.exe,,$(LIBPATH)\EMU $(LIBPATH)\MATHL $(LIBPATH)\CL
+	#tlink $(LIBPATH)\C0L radlib.obj pcztfar.obj tro2v1.obj,vga9.exe,,$(LIBPATH)\EMU $(LIBPATH)\MATHL $(LIBPATH)\CL
 	#tlink $(LIBPATH)\C0L radlib.obj tro2v1.obj,vga9.exe,,$(LIBPATH)\EMU $(LIBPATH)\MATHL $(LIBPATH)\CL
 
 a.exe: vga9.obj radlib.obj
