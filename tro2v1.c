@@ -69,7 +69,22 @@ typedef struct
 } STAR;
 
 /*char text[] =   "                 NOSTALGIA PROUDLY PRESENTZ: SIMCITY V1.07 +1 BY MAXIS!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 TWINBEARD BRACKEEN AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";*/
-char text[] = "         OWO WHATS THIS# ANOTHER 10K-DAY NOSTALGIA RELEASE# YOU BET!        NOSTALGIA PROUDLY PRESENTZ: SID MEIERS CIVILIZATION V474.05 +4 BY MICROPROSE!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 ABRASH BRACKEEN QBMIKEHAWK AND EVERYONE ELSE WHO DESIREZ A GREET!        CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          HACK THE PLANET!!!            MMXXIV  ";
+char text[] = "         OWO WHATS THIS# ANOTHER 10K-DAY NOSTALGIA RELEASE# YOU BET!        NOSTALGIA PROUDLY PRESENTZ: SID MEIERS CIVILIZATION V474.05 +4 BY MICROPROSE!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA STANDZ THE TEST OF TIME!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 ABRASH BRACKEEN QBMIKEHAWK AND EVERYONE ELSE WHO DESIREZ A GREET!        CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          HACK THE PLANET!!!            MMXXIV  ";
+
+#define HELPTEXT_NUM_LINES 8
+/* Don't forget the NUL terminator */
+#define HELPTEXT_LINE_WIDTH 22
+char helptext[HELPTEXT_NUM_LINES][HELPTEXT_LINE_WIDTH] = {
+    "    CIV +4 TRAINER   ",
+    "---------------------",
+    " WHILE IN-GAME PRESS:",
+    "                     ",
+    "  SHIFT+F1 30K GOLD  ",
+    "  SHIFT+F2 DO SCIENCE",
+    "  SHIFT+F3 MOST TECH ",
+    "  SHIFT+F4 ALL TECH  ",
+};
+
 /*char text[] = "         ABCDEFGHIJKLMNOPQRSTUVWXYZ";*/
 /*char text[] = " BRBRBRBRBRBR HERE COMES THE CHINESE EARTHQUAKE";*/
 /*char text[] = "1 2 3 4 5 6 7 8 9 0";*/
@@ -117,17 +132,10 @@ static int frame_counter = 0;
 #define LETTER_HEIGHT 24
 #define LETTER_SPACE 1056
 #define LETTER_PADDING 4
-#define TEXT_Y_OFFSET 20
-/*#define WIGGLE 10*/
-#define WIGGLE 70
+#define LETTER_HALF_WIDTH 12
+#define LETTER_HALF_HEIGHT 12
+#define LETTER_HALF_PADDING 2
 
-#define REFLECTION_ROWS 40
-/*#define REFLECTION_ROW_STEP 6 * PLANE_WIDTH*/
-#define REFLECTION_ROW_STEP 320
-/*#define REFLECTION_SOURCE_START (SCREEN_HEIGHT - REFLECTION_ROWS - 21) * PLANE_WIDTH*/
-#define REFLECTION_SOURCE_START 14960
-/*#define REFLECTION_DESTINATION_START (SCREEN_HEIGHT - REFLECTION_ROWS - 20) * PLANE_WIDTH*/
-#define REFLECTION_DESTINATION_START 15040
 
 /* (Screen height - reflection rows - margin) * pixels per plane */
 /*#define UPPER_AREA_PLANE_PIXELS (SCREEN_HEIGHT - REFLECTION_ROWS - 20) * PLANE_WIDTH*/
@@ -309,7 +317,6 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     word visible_page = 0;
     word non_visible_page = NUM_PIXELS / 4;
     word high_address, low_address;
-    /*FILE *log = fopen("debug.log", "w");*/
 #ifdef USE_ASM_PALETTE_SWAP
     word palette_seg = FP_SEG(palette);
     word palette_off = FP_OFF(palette);
@@ -463,7 +470,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
         geninterrupt(KEYBOARD_INT);
         switch (inp(0x60)) {
             case 0x1:
-                /*fclose(log);*/
+                fclose(log);
                 return;
         }
 
@@ -682,6 +689,324 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     }
 }
 
+void traintext(BITMAP bmp, short *sintable, char *xoffset_sintable, short *ztable, short *distortion_table) {
+    short x = 0;
+    short start_x = 0;
+    word y = 0;
+    word start_y = 200;
+    short rx;
+    short r_from = 0, r_to = 0;
+    short i;
+    byte j = 0, ri = 0;
+    byte helptext_line = 0;
+    byte plane = 0;
+    word ci = 0;
+    byte cy = 0;
+    byte color_offset = 0, alt_color_offset = 0;
+    short text_index = 0;
+    byte distortion;
+    byte distortion_plane;
+    SPRITE letters[HELPTEXT_NUM_LINES][HELPTEXT_LINE_WIDTH];
+    SPRITE letter;
+    word screen_memory_offset, screen_offset, bitmap_offset;
+    word copy_source, copy_destination;
+    /*byte r, g, b;*/
+    byte palette[TEXT_PALETTE_COLORS];
+    byte alt_palette[TEXT_PALETTE_COLORS];
+    /* VGA pages */
+    word temp = 0;
+    word visible_page = 0;
+    word non_visible_page = NUM_PIXELS / 4;
+    word high_address, low_address;
+#ifdef USE_ASM_PALETTE_SWAP
+    word palette_seg = FP_SEG(palette);
+    word palette_off = FP_OFF(palette);
+    word alt_palette_seg = FP_SEG(alt_palette);
+    word alt_palette_off = FP_OFF(alt_palette);
+#endif
+
+    /* Initial letters */
+    for (helptext_line = 0; helptext_line < HELPTEXT_NUM_LINES; ++helptext_line) {
+        text_index = 0;
+
+        for (ri = 0; ri < HELPTEXT_LINE_WIDTH; ++ri) {
+            letters[helptext_line][ri].x = (short)((LETTER_HALF_WIDTH + LETTER_HALF_PADDING) * ri) + 12;
+
+            if (helptext[helptext_line][text_index] >= 65) {
+                letters[helptext_line][ri].letter_offset = (short)((helptext[helptext_line][text_index] - 65) << 4) + (short)((helptext[helptext_line][text_index] - 65) << 3);
+            } else if (helptext[helptext_line][text_index] >= 48) {
+                /* Digits + colon */
+                letters[helptext_line][ri].letter_offset = (short)((helptext[helptext_line][text_index] - 22) << 4) + ((helptext[helptext_line][text_index] - 22) << 3);
+            } else if (helptext[helptext_line][text_index] == 33) {
+                /* Exclamation mark */
+                letters[helptext_line][ri].letter_offset = 888;
+            } else if (helptext[helptext_line][text_index] == 43) {
+                /* Plus sign */
+                letters[helptext_line][ri].letter_offset = 912;
+            } else if (helptext[helptext_line][text_index] == 46) {
+                /* Dot */
+                letters[helptext_line][ri].letter_offset = 936;
+            } else if (helptext[helptext_line][text_index] == 45) {
+                /* Minus sign */
+                letters[helptext_line][ri].letter_offset = 960;
+            } else if (helptext[helptext_line][text_index] == 47) {
+                /* Slash */
+                letters[helptext_line][ri].letter_offset = 984;
+            } else if (helptext[helptext_line][text_index] == 44) {
+                /* Comma */
+                letters[helptext_line][ri].letter_offset = 1008;
+            } else if (helptext[helptext_line][text_index] == 35) {
+                /* Question mark, but ASCII code of '?' isn't recognize so use a '#' instead */
+                letters[helptext_line][ri].letter_offset = 1032;
+            } else {
+                /* Space */
+                letters[helptext_line][ri].letter_offset = LETTER_SPACE;
+            }
+
+            text_index++;
+        }
+    }
+
+    /* Store palette for cycling */
+    disable();
+    outp(PALETTE_READ_INDEX, 0);
+    for (ci = 0; ci < TEXT_PALETTE_COLORS; ++ci) {
+        palette[ci] = inp(PALETTE_COLORS);
+    }
+
+    outp(PALETTE_READ_INDEX, TEXT_PALETTE_SIZE);
+    for (ci = 0; ci < 3 * TEXT_PALETTE_SIZE; ++ci) {
+        alt_palette[ci] = inp(PALETTE_COLORS);
+    }
+    outp(PALETTE_READ_INDEX, 0);
+    for (ci = 3 * TEXT_PALETTE_SIZE; ci < TEXT_PALETTE_COLORS; ++ci) {
+        alt_palette[ci] = inp(PALETTE_COLORS);
+    }
+    enable();
+
+    outport(SC_INDEX, ALL_PLANES);
+    disable();
+
+    while (1) {
+        #ifdef USE_TIMER
+        ZTimerOn();
+        #endif
+
+        /* Interrupts are still disabled at this point */
+        /* Wait for start of next vertical trace(?) */
+        /*while (!(inp(INPUT_STATUS) & VRETRACE));*/
+
+#ifdef USE_ASM_PALETTE_SWAP
+        if ((frame_counter & 1) == 0) {
+            color_offset = TEXT_PALETTE_SIZE;
+            alt_color_offset = 0;
+
+            asm push ds
+            asm push es
+
+            asm mov ax, palette_seg
+            asm mov es, ax
+            asm mov dx, palette_off
+            asm mov ax, 1012h
+            asm sub bx, bx
+            asm mov cx, 80h /* 128 colors */
+            asm int 10h
+
+            asm pop es
+            asm pop ds
+        } else {
+            color_offset = 0;
+            alt_color_offset = TEXT_PALETTE_SIZE;
+
+            asm push ds
+            asm push es
+
+            asm mov ax, alt_palette_seg
+            asm mov es, ax
+            asm mov dx, alt_palette_off
+            asm mov ax, 1012h
+            asm sub bx, bx
+            asm mov cx, 80h /* 128 colors */
+            asm int 10h
+
+            asm pop es
+            asm pop ds
+        }
+#else
+        /* Swap the two palette sets */
+        if ((frame_counter & 1) == 0) {
+            color_offset = TEXT_PALETTE_SIZE;
+            alt_color_offset = 0;
+
+            outp(PALETTE_WRITE_INDEX, 0);
+            for (ci = 0; ci < 6 * TEXT_PALETTE_SIZE;) {
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+            }
+        } else {
+            color_offset = 0;
+            alt_color_offset = TEXT_PALETTE_SIZE;
+
+            outp(PALETTE_WRITE_INDEX, 0);
+            for (ci = 0; ci < 6 * TEXT_PALETTE_SIZE;) {
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+            }
+        }
+#endif
+
+        enable();
+
+        /* Read keyboard input */
+        geninterrupt(KEYBOARD_INT);
+        switch (inp(0x60)) {
+            case 0x1:
+                /*fclose(log);*/
+                return;
+        }
+
+        /* Clear page */
+        /* All planes should already be selected because of the latch copy at the end of the loop */
+        /*outport(SC_INDEX, ALL_PLANES);*/
+        memset(&VGA[non_visible_page], color_offset, UPPER_AREA_PLANE_PIXELS);
+        /* Ensures that the reflection background is fully filled with the water color */
+        memset(&VGA[non_visible_page+UPPER_AREA_PLANE_PIXELS], alt_color_offset, REFLECTION_AREA_PLANE_PIXELS);
+
+        /* TODO */
+        /*flip_pages(&visible_page, &non_visible_page);*/
+        /*memset(&VGA[visible_page], 0, UPPER_AREA_PLANE_PIXELS);*/
+
+        /* Draw letters and stars */
+        if (start_y >= 24) {
+            start_y -= 1;
+        }
+        /*printf("%uu\n", start_y);*/
+        /*getch();*/
+
+        for (plane = 0; plane < 4; ++plane) {
+            outport(SC_INDEX, ((1 << plane) << 8) + MAP_MASK);
+
+            y = (start_y << 6) + (start_y << 4);
+            /*printf("%u %u\n", start_y, y);*/
+            /*getch();*/
+
+            for (helptext_line = 0; helptext_line < HELPTEXT_NUM_LINES; ++helptext_line) {
+                for (ri = 0; ri < HELPTEXT_LINE_WIDTH; ++ri) {
+                    letter = letters[helptext_line][ri];
+                    /*letter.x += xoffset_sintable[(byte)(frame_counter + helptext_line)];*/
+
+                    start_x = (letter.x - (letter.x & 3)) - letter.x;
+
+                    /*fprintf(log, "%d -> %d\n", letter.x, start_x);*/
+
+                    /* Letter is completely on screen */
+                    r_from = start_x;
+                    r_to = LETTER_HALF_WIDTH;
+
+                    if (r_from + plane < 0) {
+                        r_from += 4;
+                    }
+
+                    for (i = r_from + plane; i < r_to; i = i + 4) {
+
+                        /* This holds the column to draw on the currently selected plane */
+                        rx = letter.x + i;
+
+                        /* Breng de Y terug naar een kleinere waarde zodat we de Y-coordinaat als kleurcode kunnen gebruiken */
+
+                        /* Start at row 2 of the letter, step 2 pixels at a time in X direction */
+                        screen_offset = y + (rx >> 2);
+                        if (screen_offset >= REFLECTION_DESTINATION_START) {
+                            break;
+                        }
+
+                        cy = 1 + ((y >> 8) + (y >> 8) >> 2) + color_offset;
+                        bitmap_offset = letter.letter_offset + BITMAP_WIDTH + (i << 1);
+                        screen_memory_offset = non_visible_page + screen_offset;
+
+                        for(j = 0; j < LETTER_HALF_HEIGHT; ++j) {
+
+                            if (bmp.data[bitmap_offset] > 0) {
+                                /* Deze zet de kleur 'vast' per Y coordinaat */
+                                /*VGA[screen_offset] = ((cy + j) & 255);*/
+
+                                VGA[screen_memory_offset] = (cy + j);
+
+                                /* Dit kleurt per plane */
+                                /* Rood geel groen blauw */
+                                /*VGA[screen_offset] = 1 + (plane*32) & 127;*/
+                            }
+
+                            screen_memory_offset += PLANE_WIDTH;
+                            bitmap_offset += (BITMAP_WIDTH << 1); /* Step * 2 */
+                        }
+                    }
+                }
+
+                y += SCREEN_WIDTH << 2;
+            }
+        }
+
+        /* Copy pixels from the other page using latches */
+        /* Tell the VGA that all writes are to be done with bits from the latches, and none from the CPU */
+        outp(GC_INDEX, 0x08);
+        outp(GC_DATA, 0x00);
+
+        /* Select all planes */
+        outp(SC_INDEX, MAP_MASK);
+        outp(SC_DATA, 0xFF);
+
+        copy_source = visible_page + REFLECTION_SOURCE_START;
+        copy_destination = non_visible_page + REFLECTION_DESTINATION_START;
+
+        for (y = 0; y < REFLECTION_ROWS; ++y) {
+            distortion_plane = distortion_table[(byte)(y + frame_counter)];
+            for (x = 0; x < PLANE_WIDTH - distortion_plane; ++x) {
+                temp = VGA[copy_source + x + distortion_plane];
+                VGA[copy_destination + x] = 0;
+            }
+
+            /* Skip 8 rows, compresses the reflected image into a smaller area,
+             * as if looking at it from an angle */
+            copy_source -= REFLECTION_ROW_STEP;
+            copy_destination += PLANE_WIDTH;
+        }
+
+        /* Restore write behaviour: copy data from normal memory/CPU registers */
+        outp(GC_DATA, 0xFF);
+        /*wait_for_retrace();*/
+
+        /*flip_pages(&visible_page, &non_visible_page);*/
+        temp = visible_page;
+        visible_page = non_visible_page;
+        non_visible_page = temp;
+
+        high_address = HIGH_ADDRESS | (visible_page & 0xFF00);
+        low_address = LOW_ADDRESS | (visible_page << 8);
+
+        #ifdef USE_TIMER
+        ZTimerOff();
+        #endif
+
+        disable();
+        /* Wait for end of current vertical trace(?) */
+        while ((inp(INPUT_STATUS) & DISPLAY_ENABLE));
+        outport(CRTC_INDEX, high_address);
+        outport(CRTC_INDEX, low_address);
+        /* Wait for start of next vertical trace(?) */
+        while (!(inp(INPUT_STATUS) & VRETRACE));
+
+        /*getch();*/
+
+        /*++global_sin_index;*/
+        ++frame_counter;
+
+        /*break;*/
+    }
+}
+
 void validate_checksum() {
     int i, j = 0;
     byte correct[] = {38, 6, 14, 29};
@@ -716,7 +1041,8 @@ void cracktro(void) {
     BITMAP bmp;
     short sintable[SINTABLE_SIZE];
     short ztable[SCREEN_DEPTH];
-    short distortion_table[40];
+    short distortion_table[255];
+    char xoffset_sintable[SINTABLE_SIZE];
     /*
     char* line;
     FILE* f;
@@ -724,7 +1050,8 @@ void cracktro(void) {
 
     calculate_sintable(sintable, SINTABLE_SIZE);
     calculate_ztable(ztable, SCREEN_DEPTH);
-    calculate_distortion_table(distortion_table, 40);
+    calculate_distortion_table(distortion_table, 255);
+    calculate_xoffset_sintable(xoffset_sintable, SINTABLE_SIZE);
 
     /*
     f = fopen("sintable.txt", "w");
@@ -751,6 +1078,8 @@ void cracktro(void) {
 #endif
 
     mainloop(bmp, sintable, ztable, distortion_table);
+    set_palette();
+    traintext(bmp, sintable, xoffset_sintable, ztable, distortion_table);
 
 #ifdef PLAY_MUSIC
     StopPlayer();
