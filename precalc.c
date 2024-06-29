@@ -26,14 +26,15 @@ void calculate_ztable(short *table, int table_size) {
     }
 }
 
-void calculate_distortion_table(short *table, int table_size) {
+void calculate_distortion_table(int *table, int table_size) {
     int i;
     table[0] = 1;
     for (i = 1; i < table_size; ++i) {
         /*table[i] = (i % 12) >> 2;*/
         /*table[i] = (i % 10) >> 2;*/
         /*table[i] = 4 * (1 + (sin(((PI / 128) * i) * 4)) / 1);*/
-        table[i] = 2 * (1 + (sin(((PI / 64) * i) * 4)) / 1);
+        table[i] = (int)(2 * (1 + (sin(((PI / 64) * i) * 4)) / 1));
+        /*table[i] = 1.5 * (1 + (sin(((PI / 64) * i) * 4)) / 1);*/
     }
 }
 

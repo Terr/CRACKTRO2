@@ -1,14 +1,9 @@
 #define NUM_COLORS 256
-/*#define TEXT_PALETTE_SIZE 90*/
-/*#define TEXT_PALETTE_COLORS 270*/
-/*#define TEXT_PALETTE_SIZE 64*/
-/*#define TEXT_PALETTE_ANGLE 6*/
 #define TEXT_PALETTE_SIZE 64
-#define TEXT_PALETTE_ANGLE 6
-#define BLACK_PALETTE_SIZE 63
-#define STARS_PALETTE_SIZE 64
+#define TEXT_PALETTE_ANGLE 5.71428
 /* 2 * TEXT_PALETTE_SIZE * 3 */
 #define TEXT_PALETTE_COLORS 384
+#define COLOR_WATER 115 >> 2
 
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
@@ -35,7 +30,8 @@
 
 #define LETTER_HALF_WIDTH 12
 #define LETTER_HALF_HEIGHT 12
-#define LETTER_HALF_PADDING 2
+/* A padding of 2 would look nicer but latch copying needs to start at multiples of 4 */
+#define LETTER_HALF_PADDING 4
 
 #define TEXT_Y_OFFSET 20
 /*#define WIGGLE 10*/
@@ -54,3 +50,5 @@
 #define UPPER_AREA_PLANE_PIXELS 15040
 /* (Screen height - (Screen height - reflection rows - margin)) * pixels per plane */
 #define REFLECTION_AREA_PLANE_PIXELS 4160
+
+#define FADE_OUT_STEP 3
