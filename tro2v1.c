@@ -71,6 +71,8 @@ typedef struct
 /*char text[] =   "                 NOSTALGIA PROUDLY PRESENTZ: SIMCITY V1.07 +1 BY MAXIS!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 TWINBEARD BRACKEEN AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";*/
 char text[] = "         OWO WHATS THIS# ANOTHER 10K-DAY NOSTALGIA RELEASE# YOU BET!        NOSTALGIA PROUDLY PRESENTZ: SID MEIERS CIVILIZATION V474.05 +4 BY MICROPROSE!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA STANDZ THE TEST OF TIME!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 ABRASH BRACKEEN QBMIKEHAWK AND EVERYONE ELSE WHO DESIREZ A GREET!        CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          HACK THE PLANET!!!            MMXXIV  ";
 
+static escPressed = 0;
+
 #define HELPTEXT_NUM_LINES 8
 /* Don't forget the NUL terminator */
 #define HELPTEXT_LINE_WIDTH 22
@@ -175,6 +177,23 @@ void wait(int ticks)
                                              that would otherwise ignore this
                                              loop */
     }
+}
+
+void interrupt kbdhandler(void) {
+    unsigned char temp;
+
+    switch (inportb(0x60)) {
+        case 0x1:
+            escPressed = 1;
+
+            /* Acknowledge that the keypress was read */
+            outportb(0x61, (temp = inportb(0x61)) | 128);
+            outportb(0x61, temp);
+            break;
+    }
+
+    /* Acknowledge that the interrupt was handled */
+    outportb(0x20, 0x20);
 }
 
 /*
@@ -394,7 +413,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     outport(SC_INDEX, ALL_PLANES);
     disable();
 
-    while (1) {
+    while (!escPressed) {
         #ifdef USE_TIMER
         ZTimerOn();
         #endif
@@ -465,14 +484,6 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
 #endif
 
         enable();
-
-        /* Read keyboard input */
-        geninterrupt(KEYBOARD_INT);
-        switch (inp(0x60)) {
-            case 0x1:
-                fclose(log);
-                return;
-        }
 
         /* Clear page */
         /* All planes should already be selected because of the latch copy at the end of the loop */
@@ -787,7 +798,7 @@ void traintext(BITMAP bmp, short *sintable, char *xoffset_sintable, short *ztabl
     outport(SC_INDEX, ALL_PLANES);
     disable();
 
-    while (1) {
+    while (!escPressed) {
         #ifdef USE_TIMER
         ZTimerOn();
         #endif
@@ -858,14 +869,6 @@ void traintext(BITMAP bmp, short *sintable, char *xoffset_sintable, short *ztabl
 #endif
 
         enable();
-
-        /* Read keyboard input */
-        geninterrupt(KEYBOARD_INT);
-        switch (inp(0x60)) {
-            case 0x1:
-                /*fclose(log);*/
-                return;
-        }
 
         /* Clear page */
         /* All planes should already be selected because of the latch copy at the end of the loop */
@@ -1078,6 +1081,7 @@ void cracktro(void) {
 #endif
 
     mainloop(bmp, sintable, ztable, distortion_table);
+    escPressed = 0;
     set_palette();
     traintext(bmp, sintable, xoffset_sintable, ztable, distortion_table);
 
@@ -1091,9 +1095,14 @@ void cracktro(void) {
 }
 
 void main() {
+    void interrupt (*org_kbd_handler)() = getvect(0x9);
+
+    setvect(KEYBOARD_INT, kbdhandler);
     cracktro();
 
 #ifdef USE_TIMER
     ZTimerReport();
 #endif
+
+    setvect(KEYBOARD_INT, org_kbd_handler);
 }
