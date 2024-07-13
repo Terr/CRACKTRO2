@@ -268,7 +268,7 @@ void flip_pages(word *visible_page, word *non_visible_page) {
     *non_visible_page = temp;
 }
 
-void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_table) {
+void mainloop(BITMAP bmp, short *sintable, short *distortion_table) {
     short x = 0, y = 0;
     short start_x;
     short rx;
@@ -660,7 +660,7 @@ void mainloop(BITMAP bmp, short *sintable, short *ztable, short *distortion_tabl
     }
 }
 
-void traintext(BITMAP bmp, short *sintable, char *xoffset_sintable, short *ztable, short *distortion_table) {
+void traintext(BITMAP bmp, short *sintable, char *xoffset_sintable, short *distortion_table) {
     short x = 0;
     short start_x = 0;
     word y = 0;
@@ -1003,7 +1003,6 @@ void cracktro(void) {
     int i;
     BITMAP bmp;
     short sintable[SINTABLE_SIZE];
-    short ztable[SCREEN_DEPTH];
     short distortion_table[255];
     char xoffset_sintable[SINTABLE_SIZE];
     /*
@@ -1012,7 +1011,6 @@ void cracktro(void) {
     */
 
     calculate_sintable(sintable, SINTABLE_SIZE);
-    calculate_ztable(ztable, SCREEN_DEPTH);
     calculate_distortion_table(distortion_table, 255);
     calculate_xoffset_sintable(xoffset_sintable, SINTABLE_SIZE);
 
@@ -1040,10 +1038,10 @@ void cracktro(void) {
     PreparePlayer();
 #endif
 
-    mainloop(bmp, sintable, ztable, distortion_table);
+    mainloop(bmp, sintable, distortion_table);
     escPressed = 0;
     set_palette();
-    traintext(bmp, sintable, xoffset_sintable, ztable, distortion_table);
+    traintext(bmp, sintable, xoffset_sintable, distortion_table);
 
 #ifdef PLAY_MUSIC
     StopPlayer();
