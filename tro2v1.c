@@ -1142,7 +1142,8 @@ void cracktro(void) {
         ci = TEXT_PALETTE_SIZE;
     }
 
-    /* All planes should already be selected at this point*/
+    /* All planes should already be selected at this point, unless mainloop is commented out */
+    outport(SC_INDEX, ALL_PLANES);
     memset(&VGA[visible_page], i, UPPER_AREA_PLANE_PIXELS);
     /* Ensures that the reflection background is fully filled with the water color */
     memset(&VGA[visible_page+UPPER_AREA_PLANE_PIXELS], ci, REFLECTION_AREA_PLANE_PIXELS);
