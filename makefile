@@ -14,7 +14,7 @@ radlib.obj: radlib.asm player.asm
 
 tro2v1.obj: tro2v1.c defines.h letters.h precalc.h vga.h
 	#tcc -c -C -ml -O -Z -G -B tro2v1.c
-	bcc -2 -v -c -C -ml -O -Om -Ol -Oi -Oe -Oa -Z -k- -G tro2v1.c
+	bcc -2 -v -c -C -ml -O -Om -Ol -Oi -Oa -Z -k- -G tro2v1.c
 
 .c.obj:
 	#tcc -c -C -ml -O -Z -G $<
