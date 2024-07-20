@@ -301,7 +301,7 @@ void flip_pages(word *visible_page, word *non_visible_page) {
 }
 */
 
-void mainloop(BITMAP bmp, int *sintable, int *distortion_table, byte *palette, byte *alt_palette) {
+void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
     /* The number of steps in the fade out process. Loop will stop when this reaches 0 */
     char fadeout_steps = 63;
     int x = 0, y = 0, i = 0;
@@ -321,8 +321,8 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table, byte *palette, b
     SPRITE letter;
     int screen_offset, bitmap_offset;
     int copy_source, copy_destination;
-    /*byte palette[TEXT_PALETTE_COLORS];*/
-    /*byte alt_palette[TEXT_PALETTE_COLORS];*/
+    byte palette[TEXT_PALETTE_COLORS];
+    byte alt_palette[TEXT_PALETTE_COLORS];
     /* VGA pages */
     int temp = 0;
     int high_address, low_address;
@@ -334,6 +334,8 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table, byte *palette, b
 #else
     int ci;
 #endif
+
+    read_palette(palette, alt_palette);
 
     /* Initial letters */
     for (ri = 0; ri < NUM_LETTERS; ++ri) {
@@ -1073,8 +1075,6 @@ void cracktro(void) {
     /*char xoffset_sintable[SINTABLE_SIZE];*/
     word vga_storage_page = 2 * (NUM_PIXELS / 4);
     /*word vga_storage_page = 0 * (NUM_PIXELS / 4);*/
-    byte palette[TEXT_PALETTE_COLORS];
-    byte alt_palette[TEXT_PALETTE_COLORS];
     byte palette_copy[TEXT_PALETTE_COLORS];
     byte alt_palette_copy[TEXT_PALETTE_COLORS];
     /*
@@ -1110,12 +1110,15 @@ void cracktro(void) {
     PreparePlayer();
 #endif
 
-    /* Palette 1 */
+    /* Store palette for cycling in the helptext scene, as the palette will be modified by the fadeout in mainloop */
+    read_palette(palette_copy, alt_palette_copy);
+
+    /* Letters for Palette 1 */
 
     store_bitmap_in_vga_memory(bmp, vga_storage_page, 0, 624, 0);
     /* No idea why it needs to be "1274" */
     store_bitmap_in_vga_memory(bmp, vga_storage_page + 1274, 624, BITMAP_WIDTH, 0);
-    /* Palette 2 */
+    /* Letters for Palette 2 */
     /* Draw the background fill color first as it will be latch-copied as well.
      * "+ 1" to add a single line of margin because the foot of the 4 had a black line
      */
@@ -1125,12 +1128,7 @@ void cracktro(void) {
     store_bitmap_in_vga_memory(bmp, vga_storage_page + 3754, 624, BITMAP_WIDTH, TEXT_PALETTE_SIZE);
     /*while (!esc_pressed) {}*/
 
-    /* Store palette for cycling */
-    read_palette(palette, alt_palette);
-
-    memcpy(palette_copy, palette, TEXT_PALETTE_COLORS);
-    memcpy(alt_palette_copy, alt_palette, TEXT_PALETTE_COLORS);
-    mainloop(bmp, sintable, distortion_table, palette_copy, alt_palette_copy);
+    mainloop(bmp, sintable, distortion_table);
     esc_pressed = 0;
 
     /* Reset the visible page with a black background and the water area, so
@@ -1151,7 +1149,7 @@ void cracktro(void) {
 
     /* +1 because it prevents some flashing. Presumably because mainloop() ended its loop with setting frame_counter + 1 without swapping the palettes */
     frame_counter += 1;
-    traintext_latch(distortion_table, vga_storage_page, palette, alt_palette);
+    traintext_latch(distortion_table, vga_storage_page, palette_copy, alt_palette_copy);
 
 #ifdef PLAY_MUSIC
     StopPlayer();
