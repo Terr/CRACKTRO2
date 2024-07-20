@@ -206,40 +206,6 @@ void store_bitmap_in_vga_memory(BITMAP bmp, word vga_page, short from_x_position
     }
 }
 
-/*
-void draw_letter(BITMAP *bmp, short letter_offset, byte *screen_buffer, int x,int y, word skip)
-{
-  int j;
-  word screen_offset = (y<<8)+(y<<6)+x;
-  word bitmap_offset = letter_offset + skip;
-
-  for(j = 0; j < LETTER_HEIGHT; ++j)
-  {
-    memcpy(&screen_buffer[screen_offset], &bmp->data[bitmap_offset], LETTER_WIDTH - skip);
-
-    bitmap_offset += bmp->width;
-    screen_offset += SCREEN_WIDTH;
-  }
-}
-*/
-
-/*
-void draw_letter_width(BITMAP *bmp, short letter_offset, byte *screen_buffer, int x,int y, word width)
-{
-  int j;
-  word screen_offset = (y<<8)+(y<<6)+x;
-  word bitmap_offset = letter_offset;
-
-  for(j = 0; j < LETTER_HEIGHT; ++j)
-  {
-    memcpy(&screen_buffer[screen_offset], &bmp->data[bitmap_offset], width);
-
-    bitmap_offset += bmp->width;
-    screen_offset += SCREEN_WIDTH;
-  }
-}
-*/
-
 void wait_for_retrace(void)
 {
     /* wait until done with vertical retrace */
@@ -292,12 +258,9 @@ void set_palette(void) {
             i < TEXT_PALETTE_SIZE - 1;
             i++, angle_degrees += TEXT_PALETTE_ANGLE) {
         angle = (short)angle_degrees;
-        /*if (angle<60) {red = 255; green = ceil(angle*4.25-0.01); blue = 30;} else*/
-        /*if (angle<120) {red = ceil((120-angle)*4.25-0.01); green = 255; blue = 60;} else*/
         if (angle<120) {red = 0, green = ceil((120-angle)*4.25-0.01); blue = 200;} else
         if (angle<180) {red = 0, green = ceil((240-angle)*4.25-0.01); blue = 210;} else
         if (angle<240) {red = 0, green = ceil((240-angle)*4.25-0.01); blue = 255;} else
-        /*if (angle<240) {red = ceil((120-angle)*4.25-0.01); green = ceil((120-angle)*4.25-0.01); blue = ceil((120-angle)*4.25-0.01);} else*/
                         {red = 0, green = 0; blue = ceil((360-angle)*4.25-0.01);}
 
         outp(PALETTE_COLORS, red >> 2); /* R to 18-bit */
@@ -310,6 +273,7 @@ void read_palette(byte *palette, byte *alt_palette) {
     int ci;
 
     disable();
+
     /* Normal palette: rainbow colors followed by water colors */
     outp(PALETTE_READ_INDEX, 0);
     for (ci = 0; ci < TEXT_PALETTE_COLORS; ++ci) {
@@ -325,8 +289,8 @@ void read_palette(byte *palette, byte *alt_palette) {
     for (ci = 3 * TEXT_PALETTE_SIZE; ci < TEXT_PALETTE_COLORS; ++ci) {
         alt_palette[ci] = inp(PALETTE_COLORS);
     }
-    enable();
 
+    enable();
 }
 
 /*
@@ -1154,10 +1118,6 @@ void cracktro(void) {
     /* Ensures that the reflection background is fully filled with the water color */
     memset(&VGA[visible_page+UPPER_AREA_PLANE_PIXELS], ci, REFLECTION_AREA_PLANE_PIXELS);
 
-    /*set_palette();*/
-    /*read_palette(palette, alt_palette);*/
-
-    /*traintext(bmp, sintable, xoffset_sintable, distortion_table);*/
     /* +1 because it prevents some flashing. Presumably because mainloop() ended its loop with setting frame_counter + 1 without swapping the palettes */
     frame_counter += 1;
     traintext_latch(distortion_table, vga_storage_page, palette, alt_palette);
