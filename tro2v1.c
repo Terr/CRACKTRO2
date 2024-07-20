@@ -331,6 +331,8 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table, byte *palette, b
     word palette_off = FP_OFF(palette);
     word alt_palette_seg = FP_SEG(alt_palette);
     word alt_palette_off = FP_OFF(alt_palette);
+#else
+    int ci;
 #endif
 
     /* Initial letters */
@@ -490,7 +492,7 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table, byte *palette, b
             alt_color_offset = 0;
 
             outp(PALETTE_WRITE_INDEX, 0);
-            for (ci = 0; ci < 6 * TEXT_PALETTE_SIZE;) {
+            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
                 outportb(PALETTE_COLORS, palette[ci++]);
                 outportb(PALETTE_COLORS, palette[ci++]);
                 outportb(PALETTE_COLORS, palette[ci++]);
@@ -500,7 +502,7 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table, byte *palette, b
             alt_color_offset = TEXT_PALETTE_SIZE;
 
             outp(PALETTE_WRITE_INDEX, 0);
-            for (ci = 0; ci < 6 * TEXT_PALETTE_SIZE;) {
+            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
                 outportb(PALETTE_COLORS, alt_palette[ci++]);
                 outportb(PALETTE_COLORS, alt_palette[ci++]);
                 outportb(PALETTE_COLORS, alt_palette[ci++]);
@@ -762,6 +764,8 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
     word palette_off = FP_OFF(palette);
     word alt_palette_seg = FP_SEG(alt_palette);
     word alt_palette_off = FP_OFF(alt_palette);
+#else
+    int ci;
 #endif
 
     /*fprintf(log, "%d -> %d\n", letter.x, start_x);*/
@@ -881,6 +885,7 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
             fadeout_steps -= FADE_OUT_STEP;
         }
 
+#ifdef USE_ASM_PALETTE_SWAP
         if ((frame_counter & 1) == 0) {
             color_offset = TEXT_PALETTE_SIZE;
             alt_color_offset = 0;
@@ -918,6 +923,32 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
             asm pop es
             asm pop ds
         }
+#else
+        /* Swap the two palette sets */
+        if ((frame_counter & 1) == 0) {
+            color_offset = TEXT_PALETTE_SIZE;
+            alt_color_offset = 0;
+            color_storage_offset = 2480 + vga_storage_page;
+
+            outp(PALETTE_WRITE_INDEX, 0);
+            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+            }
+        } else {
+            color_offset = 0;
+            alt_color_offset = TEXT_PALETTE_SIZE;
+            color_storage_offset = vga_storage_page;
+
+            outp(PALETTE_WRITE_INDEX, 0);
+            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+            }
+        }
+#endif
 
         enable();
 
