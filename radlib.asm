@@ -197,7 +197,8 @@ TimerSteps	dw	?
 
 Music		segment para public use16
                 ;include Raster.Inc
-                include Popcorn.Inc
+                ;include Popcorn.Inc
+                include ALLOYRUN.Inc
 		ends
 
 Stack16		segment para public use16 stack
