@@ -33,8 +33,8 @@ void calculate_distortion_table(int *table, int table_size) {
         /*table[i] = (i % 12) >> 2;*/
         /*table[i] = (i % 10) >> 2;*/
         /*table[i] = 4 * (1 + (sin(((PI / 128) * i) * 4)) / 1);*/
-        table[i] = (int)(2 * (1 + (sin(((PI / 64) * i) * 4)) / 1));
-        /*table[i] = 1.5 * (1 + (sin(((PI / 64) * i) * 4)) / 1);*/
+        /*table[i] = (int)(2 * (1 + (sin(((PI / 64) * i) * 4)) / 1));*/
+        table[i] = 1.5 * (1 + (sin(((PI / 64) * i) * 4)) / 1);
     }
 }
 

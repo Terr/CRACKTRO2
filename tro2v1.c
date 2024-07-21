@@ -22,7 +22,7 @@ typedef unsigned long  dword;
  *
  * On that chipset the screen flickers a bit but it's doesn't get to displaying the full image.
  */
-#define USE_ASM_PALETTE_SWAP
+/*#define USE_ASM_PALETTE_SWAP*/
 
 #ifdef PLAY_MUSIC
 void extern PreparePlayer(void);
@@ -40,14 +40,13 @@ void extern ZTimerOff(void);
 void extern ZTimerReport(void);
 #endif
 
-/* VGA video memory segment */
-byte far *VGA=(byte far *)0xA0000000L;
-/*byte far *VGA=(byte far *)0xA0000;*/
-/*byte *VGA=(byte *)0xA0000000L;*/
 /* 18.2Hz system clock */
 word *my_clock=(word *)0x0000046C;
-static int visible_page = 0;
-static int non_visible_page = NUM_PIXELS / 4;
+
+/* VGA video memory segment */
+byte far *VGA=(byte far *)0xA0000000L;
+static unsigned int visible_page = 0;
+static unsigned int non_visible_page = NUM_PIXELS / 4;
 
 typedef struct             /* the structure for a bitmap. */
 {
@@ -316,16 +315,16 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
     int text_index = 0;
     /* Byte because of 255-wrapping */
     byte distortion;
-    int distortion_plane, distortion_plane_common;
+    unsigned int distortion_plane, distortion_plane_common;
     SPRITE letters[NUM_LETTERS];
     SPRITE letter;
-    int screen_offset, bitmap_offset;
-    int copy_source, copy_destination;
+    unsigned int screen_offset, bitmap_offset;
+    unsigned int copy_source, copy_destination;
     byte palette[TEXT_PALETTE_COLORS];
     byte alt_palette[TEXT_PALETTE_COLORS];
     /* VGA pages */
-    int temp = 0;
-    int high_address, low_address;
+    unsigned int temp = 0;
+    unsigned int high_address, low_address;
 #ifdef USE_ASM_PALETTE_SWAP
     word palette_seg = FP_SEG(palette);
     word palette_off = FP_OFF(palette);
@@ -644,17 +643,26 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
         outp(GC_DATA, 0x00);
 
         /* Select all planes */
-        outp(SC_INDEX, MAP_MASK);
-        outp(SC_DATA, 0xFF);
+        /*outp(SC_INDEX, MAP_MASK);*/
+        /*outp(SC_DATA, 0xFF);*/
+        outport(SC_INDEX, ALL_PLANES);
+
+        #ifdef USE_TIMER
+        ZTimerOn();
+        #endif
 
         copy_source = visible_page + REFLECTION_SOURCE_START;
         copy_destination = non_visible_page + REFLECTION_DESTINATION_START;
 
         for (y = 0; y < REFLECTION_ROWS; ++y) {
             distortion = y + frame_counter;
+            distortion_plane = distortion_table[distortion++];
+
             for (x = 0; x < PLANE_WIDTH; ++x) {
-                distortion_plane_common = x + distortion_table[distortion++];
-                distortion_plane = PLANE_WIDTH - 1;
+                distortion_plane++;
+                /* Dit ziet er beter uit maar is veel en veel trager */
+                /*distortion_plane = distortion_table[distortion++];*/
+
                 /* This if() is true in most of the cases, avoiding an
                  * expensive jump instruction. Only at the last 4 iterations
                  * can distortion_plane_common become too big
@@ -664,9 +672,18 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
                  * `distortion_plane` and copying `distortion_plane_common` to
                  * `distortion_plane` is more expensive than a jump?
                  */
-                if (distortion_plane_common < PLANE_WIDTH) {
-                    distortion_plane = distortion_plane_common;
+                /*if (distortion_plane >= PLANE_WIDTH) {*/
+                    /*distortion_plane = PLANE_WIDTH - 1;*/
+                /*}*/
+
+                if (distortion_plane > PLANE_WIDTH - 1) {
+                    distortion_plane--;
                 }
+
+                /*if ((x & 1) == 1) {*/
+                    /*distortion_plane = distortion_table[distortion++];*/
+                /*}*/
+
                 /*
                 if (distortion_plane > PLANE_WIDTH) {
                     [>distortion_plane = distortion_plane_common;<]
@@ -682,6 +699,10 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
             copy_destination += PLANE_WIDTH;
         }
 
+        #ifdef USE_TIMER
+        ZTimerOff();
+        #endif
+
         /* Restore write behaviour: copy data from normal memory/CPU registers */
         outp(GC_DATA, 0xFF);
         /*wait_for_retrace();*/
@@ -694,9 +715,9 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
         high_address = HIGH_ADDRESS | (visible_page & 0xFF00);
         low_address = LOW_ADDRESS | (visible_page << 8);
 
-        #ifdef USE_TIMER
+        /*#ifdef USE_TIMER
         ZTimerOff();
-        #endif
+        #endif*/
 
         disable();
         /* Wait for end of current vertical trace(?) */
@@ -744,22 +765,21 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
     int ri, gi, bi;
     byte j = 0;
     byte helptext_line = 0;
-    int color_offset = 0, alt_color_offset = 0;
-    int color_storage_offset = 0;
-    int letter_storage_offset = 0;
+    unsigned int color_offset = 0, alt_color_offset = 0;
+    unsigned int color_storage_offset = 0;
+    unsigned int letter_storage_offset = 0;
     int text_index = 0;
     byte distortion;
-    int distortion_plane;
+    unsigned int distortion_plane;
     SPRITE letters[HELPTEXT_NUM_LINES][HELPTEXT_LINE_WIDTH];
     SPRITE letter;
-    int screen_memory_offset, screen_offset, storage_memory_offset;
-    int copy_source, copy_destination;
-    byte r, g, b;
+    unsigned int screen_memory_offset, screen_offset, storage_memory_offset;
+    unsigned int copy_source, copy_destination;
     /*byte palette[TEXT_PALETTE_COLORS];*/
     /*byte alt_palette[TEXT_PALETTE_COLORS];*/
     /* VGA pages */
-    int temp = 0;
-    int high_address, low_address;
+    unsigned int temp = 0;
+    unsigned int high_address, low_address;
     /*FILE *log = fopen("debug.log", "w");*/
 #ifdef USE_ASM_PALETTE_SWAP
     word palette_seg = FP_SEG(palette);
@@ -965,7 +985,7 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
         outp(GC_INDEX, 0x08);
         outp(GC_DATA, 0x00);
 
-        if (start_y >= 30) {
+        if (start_y >= 26) {
             start_y -= 1;
         }
         /*start_y = 0; [> DEBUG <]*/
@@ -1017,19 +1037,25 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
         /* Plus 1 so the distortion shift on the left side doesn't cause pixels to end up on the right side */
         copy_destination = non_visible_page + REFLECTION_DESTINATION_START + 1;
 
-        for (y = 0; y < REFLECTION_ROWS + 11; ++y) {
+        for (y = 0; y < REFLECTION_ROWS; ++y) {
             distortion = y + frame_counter;
-            for (x = 0; x < PLANE_WIDTH; ++x) {
+
+            for (x = 0; x < PLANE_WIDTH; x += 2) {
                 distortion_plane = distortion_table[distortion++];
+
                 temp = VGA[copy_source + x + distortion_plane];
-                VGA[copy_destination + x] = 0;
+                VGA[copy_destination++] = 0;
+
+                temp = VGA[copy_source + x + distortion_plane + 1];
+                VGA[copy_destination++] = 0;
+
+                /*distortion_plane++;*/
             }
 
             /* Skip 8 rows, compresses the reflected image into a smaller area,
              * as if looking at it from an angle */
             /*copy_source -= REFLECTION_ROW_STEP;*/
             copy_source -= 160;
-            copy_destination += PLANE_WIDTH;
         }
 
         /* Restore write behaviour: copy data from normal memory/CPU registers */
