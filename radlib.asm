@@ -7,7 +7,7 @@
 ;EXTRN C precalc:far
 ;EXTRN C intro:far
 
-IPS		=	50
+IPS		= 19
     
 .DATA
 
@@ -198,7 +198,8 @@ TimerSteps	dw	?
 Music		segment para public use16
                 ;include Raster.Inc
                 ;include Popcorn.Inc
-                include ALLOYRUN.Inc
+                ;include ALLOYRUN.Inc
+                include SHOOT2.INC
 		ends
 
 Stack16		segment para public use16 stack
