@@ -15,8 +15,8 @@ typedef unsigned char  byte;
 typedef unsigned short word;
 typedef unsigned long  dword;
 
-/*#define PLAY_MUSIC*/
-#define USE_TIMER
+#define PLAY_MUSIC
+/*#define USE_TIMER*/
 /* The "ASM palette swap" method using interrupts to copy the palette is slightly faster but does not work real
  * hardware, or at least not on a C&T 65555 PCI chipset.
  *
@@ -733,102 +733,6 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
     }
 }
 
-void build_helptext_in_buffer(BITMAP bmp, byte *buffer, int buffer_start_offset) {
-    int x = 0;
-    int start_x = 0;
-    int line_y = 0;
-    int rx;
-    int i;
-    byte j = 0, ri = 0;
-    byte helptext_line = 0;
-    word ci = 0;
-    byte cy = 0;
-    byte color_offset = 0, alt_color_offset = 0;
-    short text_index = 0;
-    SPRITE letters[HELPTEXT_NUM_LINES][HELPTEXT_LINE_WIDTH];
-    SPRITE letter;
-    word screen_memory_offset, buffer_offset, bitmap_offset;
-
-    /* Initial letters */
-    for (helptext_line = 0; helptext_line < HELPTEXT_NUM_LINES; ++helptext_line) {
-        text_index = 0;
-
-        for (ri = 0; ri < HELPTEXT_LINE_WIDTH; ++ri) {
-            letters[helptext_line][ri].x = (short)((LETTER_HALF_WIDTH + LETTER_HALF_PADDING) * ri) + 12;
-
-            if (helptext[helptext_line][text_index] >= 65) {
-                letters[helptext_line][ri].letter_offset = (short)((helptext[helptext_line][text_index] - 65) << 4) + (short)((helptext[helptext_line][text_index] - 65) << 3);
-            } else if (helptext[helptext_line][text_index] >= 48) {
-                /* Digits + colon */
-                letters[helptext_line][ri].letter_offset = (short)((helptext[helptext_line][text_index] - 22) << 4) + ((helptext[helptext_line][text_index] - 22) << 3);
-            } else if (helptext[helptext_line][text_index] == 33) {
-                /* Exclamation mark */
-                letters[helptext_line][ri].letter_offset = 888;
-            } else if (helptext[helptext_line][text_index] == 43) {
-                /* Plus sign */
-                letters[helptext_line][ri].letter_offset = 912;
-            } else if (helptext[helptext_line][text_index] == 46) {
-                /* Dot */
-                letters[helptext_line][ri].letter_offset = 936;
-            } else if (helptext[helptext_line][text_index] == 45) {
-                /* Minus sign */
-                letters[helptext_line][ri].letter_offset = 960;
-            } else if (helptext[helptext_line][text_index] == 47) {
-                /* Slash */
-                letters[helptext_line][ri].letter_offset = 984;
-            } else if (helptext[helptext_line][text_index] == 44) {
-                /* Comma */
-                letters[helptext_line][ri].letter_offset = 1008;
-            } else if (helptext[helptext_line][text_index] == 35) {
-                /* Question mark, but ASCII code of '?' isn't recognize so use a '#' instead */
-                letters[helptext_line][ri].letter_offset = 1032;
-            } else {
-                /* Space */
-                letters[helptext_line][ri].letter_offset = LETTER_SPACE;
-            }
-
-            text_index++;
-        }
-    }
-
-    /* Clear buffer */
-    memset(buffer, 0, SCREEN_WIDTH * 96);
-
-    for (helptext_line = 0; helptext_line < HELPTEXT_NUM_LINES; ++helptext_line) {
-        for (ri = 0; ri < HELPTEXT_LINE_WIDTH; ++ri) {
-            letter = letters[helptext_line][ri];
-            /*letter.x += xoffset_sintable[(byte)(frame_counter + helptext_line)];*/
-
-            buffer_offset = line_y + letter.x;
-            /* Start at row 2 of the letter, step 2 pixels at a time in X direction */
-            bitmap_offset = letter.letter_offset + BITMAP_WIDTH;
-            for (j = 0; j < LETTER_HALF_HEIGHT; ++j) {
-                for (i = 0; i < LETTER_HALF_WIDTH; ++i) {
-                    cy = 1 + ((line_y >> 8) + (line_y >> 8) >> 2) + color_offset;
-
-                    /* Skip an X pixel because we want to letters to be half their width */
-                    if (bmp.data[bitmap_offset + (i << 1)] > 0) {
-                        /* Deze zet de kleur 'vast' per Y coordinaat */
-                        /*VGA[screen_offset] = ((cy + j) & 255);*/
-
-                        /*buffer[buffer_offset] = (cy + j);*/
-                        buffer[buffer_offset + i] = cy + j;
-
-                        /* Dit kleurt per plane */
-                        /* Rood geel groen blauw */
-                        /*VGA[screen_offset] = 1 + (plane*32) & 127;*/
-                    }
-                }
-
-                buffer_offset += SCREEN_WIDTH;
-                bitmap_offset += (BITMAP_WIDTH << 1); /* Step x2 */
-            }
-        }
-
-        line_y += (SCREEN_WIDTH * LETTER_HALF_HEIGHT);
-    }
-}
-
 static void cycle_palette(byte *palette, int last_index, int first_index) {
     /*int ci;*/
     byte r, g, b;
@@ -850,331 +754,6 @@ static void cycle_palette(byte *palette, int last_index, int first_index) {
     palette[first_index] = r;
     palette[first_index + 1] = g;
     palette[first_index + 2] = b;
-}
-
-void traintext_memcpy(int *distortion_table, byte *helptext_buffer, byte *palette, byte *alt_palette) {
-    int x = 0;
-    int y = 0;
-    int start_y = 200, to_y = 200;
-    char fadeout_steps = 63;
-    int i;
-    int ri, gi, bi;
-    int plane = 0;
-    byte j = 0;
-    byte helptext_line = 0;
-    unsigned int color_offset = TEXT_PALETTE_SIZE, alt_color_offset = 0;
-    unsigned int letter_storage_offset = 0;
-    int text_index = 0;
-    byte distortion;
-    unsigned int distortion_plane;
-    SPRITE letters[HELPTEXT_NUM_LINES][HELPTEXT_LINE_WIDTH];
-    SPRITE letter;
-    unsigned int screen_memory_offset, screen_offset, buffer_offset;
-    unsigned int copy_source, copy_destination;
-    /*byte palette[TEXT_PALETTE_COLORS];*/
-    /*byte alt_palette[TEXT_PALETTE_COLORS];*/
-    /* VGA pages */
-    unsigned int temp = 0;
-    unsigned int high_address, low_address;
-    /*FILE *log = fopen("debug.log", "w");*/
-#ifdef USE_ASM_PALETTE_SWAP
-    word palette_seg = FP_SEG(palette);
-    word palette_off = FP_OFF(palette);
-    word alt_palette_seg = FP_SEG(alt_palette);
-    word alt_palette_off = FP_OFF(alt_palette);
-#else
-    int ci;
-#endif
-
-    /*fprintf(log, "%d -> %d\n", letter.x, start_x);*/
-    /*fprintf(log, "KEK\n");*/
-    /*fprintf(log, "%u -> %u\n", vga_storage_page + 2, VGA[vga_storage_page + 2]);*/
-    /*fclose(log);*/
-
-    while (!(esc_pressed && fadeout_steps <= 0)) {
-        #ifdef USE_TIMER
-        ZTimerOn();
-        #endif
-
-        cycle_palette(palette, 191, 3);
-        cycle_palette(alt_palette, TEXT_PALETTE_COLORS - 1, 195);
-
-        /* Enable this if the water colors should cycle as well. Doesn't look great */
-        /*cycle_palette(alt_palette, 191, 3);*/
-        /*cycle_palette(palette, TEXT_PALETTE_COLORS - 1, 195);*/
-
-        /* Interrupts are still disabled at this point */
-
-        /* Fade out the letters when escape is pressed */
-        if (esc_pressed) {
-            for (ri = 3, gi = 4, bi = 5; ri < 3 * TEXT_PALETTE_SIZE; ri += 3, bi += 3, gi += 3) {
-                if (palette[ri] >= FADE_OUT_STEP) {
-                    palette[ri] -= FADE_OUT_STEP;
-                }
-
-                if (palette[gi] >= FADE_OUT_STEP) {
-                    palette[gi] -= FADE_OUT_STEP;
-                }
-
-                if (palette[bi] >= FADE_OUT_STEP) {
-                    palette[bi] -= FADE_OUT_STEP;
-                }
-
-                if (alt_palette[ri] >= FADE_OUT_STEP) {
-                    alt_palette[ri] -= FADE_OUT_STEP;
-                }
-
-                if (alt_palette[gi] >= FADE_OUT_STEP) {
-                    alt_palette[gi] -= FADE_OUT_STEP;
-                }
-
-                if (alt_palette[bi] >= COLOR_WATER) {
-                    alt_palette[bi] -= FADE_OUT_STEP;
-                } else {
-                    alt_palette[bi] = COLOR_WATER;
-                }
-            }
-
-            for (ri = 3 * (TEXT_PALETTE_SIZE + 1), gi = ri + 1, bi = ri + 2;
-                    ri < TEXT_PALETTE_COLORS;
-                    ri += 3, bi += 3, gi += 3) {
-                if (palette[ri] >= FADE_OUT_STEP) {
-                    palette[ri] -= FADE_OUT_STEP;
-                }
-
-                if (palette[gi] >= FADE_OUT_STEP) {
-                    palette[gi] -= FADE_OUT_STEP;
-                }
-
-                if (palette[bi] >= COLOR_WATER) {
-                    palette[bi] -= FADE_OUT_STEP;
-                } else {
-                    palette[bi] = COLOR_WATER;
-                }
-
-                if (alt_palette[ri] >= FADE_OUT_STEP) {
-                    alt_palette[ri] -= FADE_OUT_STEP;
-                }
-
-                if (alt_palette[gi] >= FADE_OUT_STEP) {
-                    alt_palette[gi] -= FADE_OUT_STEP;
-                }
-
-                if (alt_palette[bi] >= FADE_OUT_STEP) {
-                    alt_palette[bi] -= FADE_OUT_STEP;
-                }
-            }
-
-            fadeout_steps -= FADE_OUT_STEP;
-        }
-
-#ifdef USE_ASM_PALETTE_SWAP
-        if ((frame_counter & 1) == 0) {
-            color_offset = TEXT_PALETTE_SIZE;
-            alt_color_offset = 0;
-
-            asm push ds
-            asm push es
-
-            asm mov ax, palette_seg
-            asm mov es, ax
-            asm mov dx, palette_off
-            asm mov ax, 1012h
-            asm sub bx, bx
-            asm mov cx, 80h /* 128 colors */
-            asm int 10h
-
-            asm pop es
-            asm pop ds
-        } else {
-            color_offset = 0;
-            alt_color_offset = TEXT_PALETTE_SIZE;
-
-            asm push ds
-            asm push es
-
-            asm mov ax, alt_palette_seg
-            asm mov es, ax
-            asm mov dx, alt_palette_off
-            asm mov ax, 1012h
-            asm sub bx, bx
-            asm mov cx, 80h /* 128 colors */
-            asm int 10h
-
-            asm pop es
-            asm pop ds
-        }
-#else
-        /* Swap the two palette sets */
-        if ((frame_counter & 1) == 0) {
-            color_offset = TEXT_PALETTE_SIZE;
-            alt_color_offset = 0;
-
-            outp(PALETTE_WRITE_INDEX, 0);
-            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
-            }
-        } else {
-            color_offset = 0;
-            alt_color_offset = TEXT_PALETTE_SIZE;
-
-            outp(PALETTE_WRITE_INDEX, 0);
-            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
-                outportb(PALETTE_COLORS, alt_palette[ci++]);
-                outportb(PALETTE_COLORS, alt_palette[ci++]);
-                outportb(PALETTE_COLORS, alt_palette[ci++]);
-            }
-        }
-#endif
-
-        enable();
-
-        /* Clear page */
-        /* Select all planes */
-        outport(SC_INDEX, ALL_PLANES);
-        /* All planes should already be selected because of the latch copy at the end of the loop */
-        memset(&VGA[non_visible_page], color_offset, UPPER_AREA_PLANE_PIXELS);
-        /* Ensures that the reflection background is fully filled with the water color */
-        memset(&VGA[non_visible_page + UPPER_AREA_PLANE_PIXELS], alt_color_offset, REFLECTION_AREA_PLANE_PIXELS);
-
-        /*if (start_y >= 26) {*/
-            /*start_y -= 1;*/
-        /*}*/
-        start_y = 0; /* DEBUG */
-
-        /*fprintf(log, "%u\n", start_y);*/
-
-        /*y = (start_y << 6) + (start_y << 4);*/
-        /*printf("%u %u\n", start_y, y);*/
-        /*getch();*/
-
-        for (plane = 0; plane < 4; ++plane) {
-            /* Select plane */
-            outport(SC_INDEX, ((1 << plane) << 8) + MAP_MASK);
-
-            buffer_offset = plane;
-            screen_offset = (start_y << 6) + (start_y << 4);
-            screen_memory_offset = non_visible_page + screen_offset;
-
-            for (y = 0; y < 96; ++y) {
-                for (x = 0; x < PLANE_WIDTH; ++x) {
-                    /*j = helptext_buffer[(SCREEN_WIDTH * y) + (x << 2) + plane];*/
-                    j = helptext_buffer[buffer_offset];
-                    if (j > 0) {
-                        VGA[screen_memory_offset] = j + color_offset;
-                    }
-                    /*VGA[screen_memory_offset] = helptext_buffer[(SCREEN_WIDTH * y) + (x << 2) + plane];*/
-
-                    buffer_offset += 4;
-                    screen_memory_offset++;
-                }
-            }
-
-            /*for (y = start_y; y < 12; ++y) {
-                for (x = 0; x < PLANE_WIDTH; ++x) {
-                buffer_offset = ((y - start_y) * SCREEN_WIDTH) + plane + (x << 2);
-                screen_offset = (y * PLANE_WIDTH) + x;
-                screen_memory_offset = non_visible_page + screen_offset;
-
-                    VGA[screen_memory_offset] = plane << 2;
-
-                    j = helptext_buffer[buffer_offset];
-                    if (j > 0) {
-                    [>VGA[screen_memory_offset] = helptext_buffer[buffer_offset];<]
-                        [>VGA[screen_memory_offset] = plane << 4;<]
-                    }
-                    [>VGA[screen_memory_offset] = 1;<]
-
-                    [>screen_memory_offset++;<]
-                    [>buffer_offset += 4;<]
-                }
-
-                [>buffer_offset += SCREEN_WIDTH;<]
-                [>screen_offset += PLANE_WIDTH;<]
-            }*/
-        }
-
-/*
-+                        screen_offset = y + (rx >> 2);^M
-+                        cy = 1 + ((y >> 8) + (y >> 8) >> 2) + color_offset;^M
-+                        bitmap_offset = letter.letter_offset + BITMAP_WIDTH + (i << 1);^M
-+                        screen_memory_offset = non_visible_page + screen_offset;^M
-+^M
-+                        for(j = 0; j < LETTER_HALF_HEIGHT; ++j) {^M
-+^M
-+                            if (bmp.data[bitmap_offset] > 0) {^M
-+                                [> Deze zet de kleur 'vast' per Y coordinaat <]^M
-+                                [>VGA[screen_offset] = ((cy + j) & 255);<]^M
-+^M
-+                                VGA[screen_memory_offset] = (cy + j);^M
-+^M
-+                                [> Dit kleurt per plane <]^M
-+                                [> Rood geel groen blauw <]^M
-+                                [>VGA[screen_offset] = 1 + (plane*32) & 127;<]^M
-+                            }^M
-+^M
-+                            screen_memory_offset += PLANE_WIDTH;^M
-+                            bitmap_offset += (BITMAP_WIDTH << 1); [> Step * 2 <]^M
-+                        }^M
-+                    }^M
-*/
-
-        /*copy_source = visible_page + REFLECTION_SOURCE_START;
-        [> Plus 1 so the distortion shift on the left side doesn't cause pixels to end up on the right side <]
-        copy_destination = non_visible_page + REFLECTION_DESTINATION_START + 1;
-
-        for (y = 0; y < REFLECTION_ROWS; ++y) {
-            distortion = y + frame_counter;
-
-            for (x = 0; x < PLANE_WIDTH; x += 2) {
-                distortion_plane = distortion_table[distortion++];
-
-                temp = VGA[copy_source + x + distortion_plane];
-                VGA[copy_destination++] = 0;
-
-                temp = VGA[copy_source + x + distortion_plane + 1];
-                VGA[copy_destination++] = 0;
-
-                [>distortion_plane++;<]
-            }
-
-            [> Skip 8 rows, compresses the reflected image into a smaller area,
-             * as if looking at it from an angle <]
-            [>copy_source -= REFLECTION_ROW_STEP;<]
-            copy_source -= 160;
-        }*/
-
-        /*flip_pages(&visible_page, &non_visible_page);*/
-        temp = visible_page;
-        visible_page = non_visible_page;
-        non_visible_page = temp;
-
-        high_address = HIGH_ADDRESS | (visible_page & 0xFF00);
-        low_address = LOW_ADDRESS | (visible_page << 8);
-
-        #ifdef USE_TIMER
-        ZTimerOff();
-        #endif
-
-        disable();
-        /* Wait for end of current vertical trace(?) */
-        while ((inp(INPUT_STATUS) & DISPLAY_ENABLE));
-        outport(CRTC_INDEX, high_address);
-        outport(CRTC_INDEX, low_address);
-        /* Wait for start of next vertical trace(?) */
-        while (!(inp(INPUT_STATUS) & VRETRACE));
-
-        /*getch();*/
-
-        /*++global_sin_index;*/
-        ++frame_counter;
-
-        /*break;*/
-    }
-
-    /*fclose(log);*/
 }
 
 void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette, byte *alt_palette) {
@@ -1522,7 +1101,6 @@ void cracktro(void) {
     /*char xoffset_sintable[SINTABLE_SIZE];*/
     word vga_storage_page = 2 * (NUM_PIXELS / 4);
     /*word vga_storage_page = 0 * (NUM_PIXELS / 4);*/
-    byte helptext_buffer[SCREEN_WIDTH * 96];
     byte palette_copy[TEXT_PALETTE_COLORS];
     byte alt_palette_copy[TEXT_PALETTE_COLORS];
     /*
@@ -1561,8 +1139,6 @@ void cracktro(void) {
     /* Store palette for cycling in the helptext scene, as the palette will be modified by the fadeout in mainloop */
     read_palette(palette_copy, alt_palette_copy);
 
-    build_helptext_in_buffer(bmp, helptext_buffer, 0);
-
     /* Letters for Palette 1 */
 
     store_bitmap_in_vga_memory(bmp, vga_storage_page, 0, 624, 0);
@@ -1578,7 +1154,7 @@ void cracktro(void) {
     store_bitmap_in_vga_memory(bmp, vga_storage_page + 3754, 624, BITMAP_WIDTH, TEXT_PALETTE_SIZE);
     /*while (!esc_pressed) {}*/
 
-    /*mainloop(bmp, sintable, distortion_table);*/
+    mainloop(bmp, sintable, distortion_table);
     esc_pressed = 0;
 
     /* Reset the visible page with a black background and the water area, so
@@ -1600,8 +1176,7 @@ void cracktro(void) {
 
     /* +1 because it prevents some flashing. Presumably because mainloop() ended its loop with setting frame_counter + 1 without swapping the palettes */
     frame_counter += 1;
-    /*traintext_latch(distortion_table, vga_storage_page, palette_copy, alt_palette_copy);*/
-    traintext_memcpy(distortion_table, helptext_buffer, palette_copy, alt_palette_copy);
+    traintext_latch(distortion_table, vga_storage_page, palette_copy, alt_palette_copy);
 
 #ifdef PLAY_MUSIC
     StopPlayer();
