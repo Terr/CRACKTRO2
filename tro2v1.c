@@ -47,6 +47,7 @@ word *my_clock=(word *)0x0000046C;
 byte far *VGA=(byte far *)0xA0000000L;
 static unsigned int visible_page = 0;
 static unsigned int non_visible_page = NUM_PIXELS / 4;
+static unsigned int color_offset = 0, alt_color_offset = 0;
 
 typedef struct             /* the structure for a bitmap. */
 {
@@ -311,7 +312,6 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
     int plane = 0;
     /* These are bytes because they are used to modify VGA memory, which is a byte pointer */
     byte cy = 0, j = 0;
-    int color_offset = 0, alt_color_offset = 0;
     int text_index = 0;
     /* Byte because of 255-wrapping */
     byte distortion;
@@ -765,7 +765,6 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
     int ri, gi, bi;
     byte j = 0;
     byte helptext_line = 0;
-    unsigned int color_offset = 0, alt_color_offset = 0;
     unsigned int color_storage_offset = 0;
     unsigned int letter_storage_offset = 0;
     int text_index = 0;
@@ -1094,7 +1093,6 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
 }
 
 void cracktro(void) {
-    int i, ci;
     BITMAP bmp;
     int sintable[SINTABLE_SIZE];
     int distortion_table[SINTABLE_SIZE];
@@ -1157,25 +1155,13 @@ void cracktro(void) {
     mainloop(bmp, sintable, distortion_table);
     esc_pressed = 0;
 
-    /* Reset the visible page with a black background and the water area, so
-     * that the coming palette change doesn't suddenly make the faded out
-     * letters visible again */
-    if ((frame_counter & 1) == 0) {
-        i = TEXT_PALETTE_SIZE;
-        ci = 0;
-    } else {
-        i = 0;
-        ci = TEXT_PALETTE_SIZE;
-    }
-
-    /* All planes should already be selected at this point, unless mainloop is commented out */
-    outport(SC_INDEX, ALL_PLANES);
-    memset(&VGA[visible_page], i, UPPER_AREA_PLANE_PIXELS);
+    /* All planes should already be selected at this point (unless mainloop is commented out) */
+    /* because mainloop() while condition is checked at a point where all planes are selected */
+    /*outport(SC_INDEX, ALL_PLANES);*/
+    memset(&VGA[visible_page], alt_color_offset, UPPER_AREA_PLANE_PIXELS);
     /* Ensures that the reflection background is fully filled with the water color */
-    memset(&VGA[visible_page+UPPER_AREA_PLANE_PIXELS], ci, REFLECTION_AREA_PLANE_PIXELS);
+    memset(&VGA[visible_page+UPPER_AREA_PLANE_PIXELS], color_offset, REFLECTION_AREA_PLANE_PIXELS);
 
-    /* +1 because it prevents some flashing. Presumably because mainloop() ended its loop with setting frame_counter + 1 without swapping the palettes */
-    frame_counter += 1;
     traintext_latch(distortion_table, vga_storage_page, palette_copy, alt_palette_copy);
 
 #ifdef PLAY_MUSIC
