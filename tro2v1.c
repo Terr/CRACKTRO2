@@ -554,20 +554,27 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
                     bitmap_offset = letter.letter_offset + i;
                     screen_offset = non_visible_page + y + (rx >> 2);
 
-                    for(j = 0; j < LETTER_HEIGHT; ++j) {
-                        if (bmp.data[bitmap_offset] > 0) {
-                            /* Deze zet de kleur 'vast' per Y coordinaat */
-                            /*VGA[screen_offset] = ((cy + j) & 255);*/
-
-                            VGA[screen_offset] = cy + j;
-
-                            /* Dit kleurt per plane */
-                            /* Rood geel groen blauw */
-                            /*VGA[screen_offset] = 1 + (plane*32) & 127;*/
+                    /* Handle spaces differently: because they only consist of empty pixels, the frame rate goes up when there are several spaces on screen. Do put the VGA to work for spaces to slow it down a little. */
+                    if (letter.letter_offset == LETTER_SPACE) {
+                        for (j = 0; j < 6; ++j) {
+                            VGA[screen_offset] = color_offset;
                         }
+                    } else {
+                        for (j = 0; j < LETTER_HEIGHT; ++j) {
+                            if (bmp.data[bitmap_offset] > 0) {
+                                /* Deze zet de kleur 'vast' per Y coordinaat */
+                                /*VGA[screen_offset] = ((cy + j) & 255);*/
 
-                        screen_offset += PLANE_WIDTH;
-                        bitmap_offset += BITMAP_WIDTH;
+                                VGA[screen_offset] = cy + j;
+
+                                /* Dit kleurt per plane */
+                                /* Rood geel groen blauw */
+                                /*VGA[screen_offset] = 1 + (plane*32) & 127;*/
+                            }
+
+                            screen_offset += PLANE_WIDTH;
+                            bitmap_offset += BITMAP_WIDTH;
+                        }
                     }
                 }
             }
