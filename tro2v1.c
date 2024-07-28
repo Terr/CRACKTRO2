@@ -376,7 +376,6 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
     }
 
     outport(SC_INDEX, ALL_PLANES);
-    disable();
 
     while (!(esc_pressed && fadeout_steps <= 0)) {
         #ifdef USE_TIMER
@@ -449,69 +448,6 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
 
             fadeout_steps -= FADE_OUT_STEP;
         }
-
-#ifdef USE_ASM_PALETTE_SWAP
-        if ((frame_counter & 1) == 0) {
-            color_offset = TEXT_PALETTE_SIZE;
-            alt_color_offset = 0;
-
-            asm push ds
-            asm push es
-
-            asm mov ax, palette_seg
-            asm mov es, ax
-            asm mov dx, palette_off
-            asm mov ax, 1012h
-            asm sub bx, bx
-            asm mov cx, 80h /* 128 colors */
-            asm int 10h
-
-            asm pop es
-            asm pop ds
-        } else {
-            color_offset = 0;
-            alt_color_offset = TEXT_PALETTE_SIZE;
-
-            asm push ds
-            asm push es
-
-            asm mov ax, alt_palette_seg
-            asm mov es, ax
-            asm mov dx, alt_palette_off
-            asm mov ax, 1012h
-            asm sub bx, bx
-            asm mov cx, 80h /* 128 colors */
-            asm int 10h
-
-            asm pop es
-            asm pop ds
-        }
-#else
-        /* Swap the two palette sets */
-        if ((frame_counter & 1) == 0) {
-            color_offset = TEXT_PALETTE_SIZE;
-            alt_color_offset = 0;
-
-            outp(PALETTE_WRITE_INDEX, 0);
-            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
-            }
-        } else {
-            color_offset = 0;
-            alt_color_offset = TEXT_PALETTE_SIZE;
-
-            outp(PALETTE_WRITE_INDEX, 0);
-            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
-                outportb(PALETTE_COLORS, alt_palette[ci++]);
-                outportb(PALETTE_COLORS, alt_palette[ci++]);
-                outportb(PALETTE_COLORS, alt_palette[ci++]);
-            }
-        }
-#endif
-
-        enable();
 
         /* Clear page */
         /* All planes should already be selected because of the latch copy at the end of the loop */
@@ -719,13 +655,75 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
         ZTimerOff();
         #endif*/
 
-        disable();
         /* Wait for end of current vertical trace(?) */
         while ((inp(INPUT_STATUS) & DISPLAY_ENABLE));
+        disable();
         outport(CRTC_INDEX, high_address);
         outport(CRTC_INDEX, low_address);
         /* Wait for start of next vertical trace(?) */
         while (!(inp(INPUT_STATUS) & VRETRACE));
+
+#ifdef USE_ASM_PALETTE_SWAP
+        if ((frame_counter & 1) == 0) {
+            color_offset = TEXT_PALETTE_SIZE;
+            alt_color_offset = 0;
+
+            asm push ds
+            asm push es
+
+            asm mov ax, palette_seg
+            asm mov es, ax
+            asm mov dx, palette_off
+            asm mov ax, 1012h
+            asm sub bx, bx
+            asm mov cx, 80h /* 128 colors */
+            asm int 10h
+
+            asm pop es
+            asm pop ds
+        } else {
+            color_offset = 0;
+            alt_color_offset = TEXT_PALETTE_SIZE;
+
+            asm push ds
+            asm push es
+
+            asm mov ax, alt_palette_seg
+            asm mov es, ax
+            asm mov dx, alt_palette_off
+            asm mov ax, 1012h
+            asm sub bx, bx
+            asm mov cx, 80h /* 128 colors */
+            asm int 10h
+
+            asm pop es
+            asm pop ds
+        }
+#else
+        /* Swap the two palette sets */
+        if ((frame_counter & 1) == 0) {
+            color_offset = TEXT_PALETTE_SIZE;
+            alt_color_offset = 0;
+
+            outp(PALETTE_WRITE_INDEX, 0);
+            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+            }
+        } else {
+            color_offset = 0;
+            alt_color_offset = TEXT_PALETTE_SIZE;
+
+            outp(PALETTE_WRITE_INDEX, 0);
+            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+            }
+        }
+#endif
+        enable();
 
         /*getch();*/
 
@@ -906,73 +904,6 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
             fadeout_steps -= FADE_OUT_STEP;
         }
 
-#ifdef USE_ASM_PALETTE_SWAP
-        if ((frame_counter & 1) == 0) {
-            color_offset = TEXT_PALETTE_SIZE;
-            alt_color_offset = 0;
-            color_storage_offset = 2480 + vga_storage_page;
-
-            asm push ds
-            asm push es
-
-            asm mov ax, palette_seg
-            asm mov es, ax
-            asm mov dx, palette_off
-            asm mov ax, 1012h
-            asm sub bx, bx
-            asm mov cx, 80h /* 128 colors */
-            asm int 10h
-
-            asm pop es
-            asm pop ds
-        } else {
-            color_offset = 0;
-            alt_color_offset = TEXT_PALETTE_SIZE;
-            color_storage_offset = vga_storage_page;
-
-            asm push ds
-            asm push es
-
-            asm mov ax, alt_palette_seg
-            asm mov es, ax
-            asm mov dx, alt_palette_off
-            asm mov ax, 1012h
-            asm sub bx, bx
-            asm mov cx, 80h /* 128 colors */
-            asm int 10h
-
-            asm pop es
-            asm pop ds
-        }
-#else
-        /* Swap the two palette sets */
-        if ((frame_counter & 1) == 0) {
-            color_offset = TEXT_PALETTE_SIZE;
-            alt_color_offset = 0;
-            color_storage_offset = 2480 + vga_storage_page;
-
-            outp(PALETTE_WRITE_INDEX, 0);
-            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
-                outportb(PALETTE_COLORS, palette[ci++]);
-            }
-        } else {
-            color_offset = 0;
-            alt_color_offset = TEXT_PALETTE_SIZE;
-            color_storage_offset = vga_storage_page;
-
-            outp(PALETTE_WRITE_INDEX, 0);
-            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
-                outportb(PALETTE_COLORS, alt_palette[ci++]);
-                outportb(PALETTE_COLORS, alt_palette[ci++]);
-                outportb(PALETTE_COLORS, alt_palette[ci++]);
-            }
-        }
-#endif
-
-        enable();
-
         /* Clear page */
         /* All planes should already be selected because of the latch copy at the end of the loop */
         memset(&VGA[non_visible_page], color_offset, UPPER_AREA_PLANE_PIXELS);
@@ -1073,13 +1004,81 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
         ZTimerOff();
         #endif
 
-        disable();
         /* Wait for end of current vertical trace(?) */
         while ((inp(INPUT_STATUS) & DISPLAY_ENABLE));
+        disable();
         outport(CRTC_INDEX, high_address);
         outport(CRTC_INDEX, low_address);
         /* Wait for start of next vertical trace(?) */
         while (!(inp(INPUT_STATUS) & VRETRACE));
+
+#ifdef USE_ASM_PALETTE_SWAP
+        if ((frame_counter & 1) == 0) {
+            color_offset = TEXT_PALETTE_SIZE;
+            alt_color_offset = 0;
+            color_storage_offset = 2480 + vga_storage_page;
+
+            asm push ds
+            asm push es
+
+            asm mov ax, palette_seg
+            asm mov es, ax
+            asm mov dx, palette_off
+            asm mov ax, 1012h
+            asm sub bx, bx
+            asm mov cx, 80h /* 128 colors */
+            asm int 10h
+
+            asm pop es
+            asm pop ds
+        } else {
+            color_offset = 0;
+            alt_color_offset = TEXT_PALETTE_SIZE;
+            color_storage_offset = vga_storage_page;
+
+            asm push ds
+            asm push es
+
+            asm mov ax, alt_palette_seg
+            asm mov es, ax
+            asm mov dx, alt_palette_off
+            asm mov ax, 1012h
+            asm sub bx, bx
+            asm mov cx, 80h /* 128 colors */
+            asm int 10h
+
+            asm pop es
+            asm pop ds
+        }
+#else
+        /* Swap the two palette sets */
+        if ((frame_counter & 1) == 0) {
+            color_offset = TEXT_PALETTE_SIZE;
+            alt_color_offset = 0;
+            color_storage_offset = 2480 + vga_storage_page;
+
+            outp(PALETTE_WRITE_INDEX, 0);
+            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+                outportb(PALETTE_COLORS, palette[ci++]);
+            }
+        } else {
+            color_offset = 0;
+            alt_color_offset = TEXT_PALETTE_SIZE;
+            color_storage_offset = vga_storage_page;
+
+            outp(PALETTE_WRITE_INDEX, 0);
+            for (ci = 0; ci < TEXT_PALETTE_COLORS;) {
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+                outportb(PALETTE_COLORS, alt_palette[ci++]);
+            }
+        }
+#endif
+
+        enable();
+
 
         /*getch();*/
 
