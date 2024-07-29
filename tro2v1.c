@@ -15,8 +15,9 @@ typedef unsigned char  byte;
 typedef unsigned short word;
 typedef unsigned long  dword;
 
-#define PLAY_MUSIC
-/*#define USE_TIMER*/
+/*#define PLAY_MUSIC*/
+#define USE_TIMER
+#define VSYNC
 /* The "ASM palette swap" method using interrupts to copy the palette is slightly faster but does not work real
  * hardware, or at least not on a C&T 65555 PCI chipset.
  *
@@ -658,17 +659,17 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
         high_address = HIGH_ADDRESS | (visible_page & 0xFF00);
         low_address = LOW_ADDRESS | (visible_page << 8);
 
-        /*#ifdef USE_TIMER
-        ZTimerOff();
-        #endif*/
-
+#ifdef VSYNC
         /* Wait for end of current vertical trace(?) */
         while ((inp(INPUT_STATUS) & DISPLAY_ENABLE));
+#endif
         disable();
         outport(CRTC_INDEX, high_address);
         outport(CRTC_INDEX, low_address);
+#ifdef VSYNC
         /* Wait for start of next vertical trace(?) */
         while (!(inp(INPUT_STATUS) & VRETRACE));
+#endif
 
 #ifdef USE_ASM_PALETTE_SWAP
         if ((frame_counter & 1) == 0) {
@@ -1011,13 +1012,17 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
         ZTimerOff();
         #endif
 
+#ifdef VSYNC
         /* Wait for end of current vertical trace(?) */
         while ((inp(INPUT_STATUS) & DISPLAY_ENABLE));
+#endif
         disable();
         outport(CRTC_INDEX, high_address);
         outport(CRTC_INDEX, low_address);
+#ifdef VSYNC
         /* Wait for start of next vertical trace(?) */
         while (!(inp(INPUT_STATUS) & VRETRACE));
+#endif
 
 #ifdef USE_ASM_PALETTE_SWAP
         if ((frame_counter & 1) == 0) {
