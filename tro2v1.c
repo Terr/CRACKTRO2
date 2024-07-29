@@ -591,19 +591,15 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
         /*outp(SC_DATA, 0xFF);*/
         outport(SC_INDEX, ALL_PLANES);
 
-        #ifdef USE_TIMER
-        ZTimerOn();
-        #endif
-
         copy_source = visible_page + REFLECTION_SOURCE_START;
         copy_destination = non_visible_page + REFLECTION_DESTINATION_START;
 
         for (y = 0; y < REFLECTION_ROWS; ++y) {
             distortion = y + frame_counter;
             distortion_plane = distortion_table[distortion++];
+            copy_source += distortion_plane;
 
             for (x = 0; x < PLANE_WIDTH; ++x) {
-                distortion_plane++;
                 /* Dit ziet er beter uit maar is veel en veel trager */
                 /*distortion_plane = distortion_table[distortion++];*/
 
@@ -620,10 +616,6 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
                     /*distortion_plane = PLANE_WIDTH - 1;*/
                 /*}*/
 
-                if (distortion_plane > PLANE_WIDTH - 1) {
-                    distortion_plane--;
-                }
-
                 /*if ((x & 1) == 1) {*/
                     /*distortion_plane = distortion_table[distortion++];*/
                 /*}*/
@@ -633,19 +625,21 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
                     [>distortion_plane = distortion_plane_common;<]
                     distortion_plane = PLANE_WIDTH - x - 1;
                 }*/
-                temp = VGA[copy_source + distortion_plane];
-                VGA[copy_destination + x] = 0;
+                temp = VGA[copy_source];
+                VGA[copy_destination] = 0;
+
+                distortion_plane++;
+                if (distortion_plane < PLANE_WIDTH - 1) {
+                    copy_source++;
+                }
+                copy_destination++;
             }
 
             /* Skip 8 rows, compresses the reflected image into a smaller area,
              * as if looking at it from an angle */
-            copy_source -= REFLECTION_ROW_STEP;
-            copy_destination += PLANE_WIDTH;
+            copy_source = visible_page + REFLECTION_SOURCE_START - (y * REFLECTION_ROW_STEP);
+            /*copy_destination += PLANE_WIDTH;*/
         }
-
-        #ifdef USE_TIMER
-        ZTimerOff();
-        #endif
 
         /* Restore write behaviour: copy data from normal memory/CPU registers */
         outp(GC_DATA, 0xFF);
@@ -736,6 +730,10 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
         /*getch();*/
 
         ++frame_counter;
+
+        #ifdef USE_TIMER
+        ZTimerOff();
+        #endif
     }
 }
 
@@ -979,12 +977,12 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
             distortion = y + frame_counter;
 
             for (x = 0; x < PLANE_WIDTH; x += 2) {
-                distortion_plane = distortion_table[distortion++];
+                distortion_plane = distortion_table[distortion++] + copy_source + x;
 
-                temp = VGA[copy_source + x + distortion_plane];
+                temp = VGA[distortion_plane];
                 VGA[copy_destination++] = 0;
 
-                temp = VGA[copy_source + x + distortion_plane + 1];
+                temp = VGA[distortion_plane + 1];
                 VGA[copy_destination++] = 0;
 
                 /*distortion_plane++;*/
@@ -1007,10 +1005,6 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
 
         high_address = HIGH_ADDRESS | (visible_page & 0xFF00);
         low_address = LOW_ADDRESS | (visible_page << 8);
-
-        #ifdef USE_TIMER
-        ZTimerOff();
-        #endif
 
 #ifdef VSYNC
         /* Wait for end of current vertical trace(?) */
@@ -1096,6 +1090,10 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
 
         /*++global_sin_index;*/
         ++frame_counter;
+
+        #ifdef USE_TIMER
+        ZTimerOff();
+        #endif
 
         /*break;*/
     }
