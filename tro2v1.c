@@ -525,7 +525,7 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
 
                 if (letter.x < 0) {
                     /* Left side of the letter is offscreen */
-                    r_from = (letter.x - (LETTER_WIDTH + letter.x) & 3) - letter.x;
+                    r_from = -letter.x;
                     r_to = LETTER_WIDTH;
                 } else if (letter.x + LETTER_WIDTH > SCREEN_WIDTH) {
                     /* Right side of the letter is offscreen */
