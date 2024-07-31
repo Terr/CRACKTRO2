@@ -519,29 +519,28 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
                 letter = letters[ri];
 
                 /*start_x = ((letter.x / 4) * 4) - letter.x;*/
-                start_x = (letter.x - (letter.x & 3)) - letter.x;
 
                 /*fprintf(log, "%d -> %d\n", letter.x, start_x);*/
 
-                if (letter.x > 0 && letter.x < SCREEN_WIDTH - LETTER_WIDTH)
+                if (letter.x >= 0 && letter.x < SCREEN_WIDTH - LETTER_WIDTH) {
                     /* Letter is completely on screen */
-                    r_from = start_x;
+                    r_from = plane + (letter.x - (letter.x & 3)) - letter.x;
                     r_to = LETTER_WIDTH;
                 } else if (letter.x < 0) {
                     /* Left side of the letter is offscreen */
-                    r_from = -letter.x;
+                    r_from = plane + -letter.x;
                     r_to = LETTER_WIDTH;
                 } else {
                     /* Right side of the letter is offscreen */
-                    r_from = start_x;
-                    r_to = LETTER_WIDTH - ((letter.x + LETTER_WIDTH) - SCREEN_WIDTH);
+                    r_from = plane + (letter.x - (letter.x & 3)) - letter.x;
+                    r_to = -(letter.x - SCREEN_WIDTH);
                 }
 
-                if (r_from + plane < 0) {
+                if (r_from < 0) {
                     r_from += 4;
                 }
 
-                for (i = r_from + plane; i < r_to; i += 4) {
+                for (i = r_from; i < r_to; i += 4) {
 
                     /* This holds the column to draw on the currently selected plane */
                     rx = letter.x + i;
