@@ -523,18 +523,18 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
 
                 /*fprintf(log, "%d -> %d\n", letter.x, start_x);*/
 
-                if (letter.x < 0) {
-                    /* Left side of the letter is offscreen */
-                    r_from = -letter.x;
-                    r_to = LETTER_WIDTH;
-                } else if (letter.x + LETTER_WIDTH > SCREEN_WIDTH) {
-                    /* Right side of the letter is offscreen */
-                    r_from = start_x;
-                    r_to = LETTER_WIDTH - ((letter.x + LETTER_WIDTH) - SCREEN_WIDTH);
-                } else {
+                if (letter.x > 0 && letter.x < SCREEN_WIDTH - LETTER_WIDTH)
                     /* Letter is completely on screen */
                     r_from = start_x;
                     r_to = LETTER_WIDTH;
+                } else if (letter.x < 0) {
+                    /* Left side of the letter is offscreen */
+                    r_from = -letter.x;
+                    r_to = LETTER_WIDTH;
+                } else {
+                    /* Right side of the letter is offscreen */
+                    r_from = start_x;
+                    r_to = LETTER_WIDTH - ((letter.x + LETTER_WIDTH) - SCREEN_WIDTH);
                 }
 
                 if (r_from + plane < 0) {
