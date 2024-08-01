@@ -199,7 +199,8 @@ Music		segment para public use16
                 ;include Raster.Inc
                 ;include Popcorn.Inc
                 ;include ALLOYRUN.Inc
-                include SHOOT2.INC
+                ;include SHOOT2.INC
+                include NEO2.INC
 		ends
 
 Stack16		segment para public use16 stack
