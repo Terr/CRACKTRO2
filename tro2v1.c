@@ -24,6 +24,7 @@ typedef unsigned long  dword;
  * On that chipset the screen flickers a bit but it's doesn't get to displaying the full image.
  */
 /*#define USE_ASM_PALETTE_SWAP*/
+#define FADEOUT
 
 #ifdef PLAY_MUSIC
 void extern PreparePlayer(void);
@@ -390,6 +391,10 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
 
         /* Fade out the letters when escape is pressed */
         if (esc_pressed) {
+            #ifndef FADEOUT
+            break;
+            #endif
+
             for (ri = 3, gi = 4, bi = 5; ri < 3 * TEXT_PALETTE_SIZE; ri += 3, bi += 3, gi += 3) {
                 if (palette[ri] >= FADE_OUT_STEP) {
                     palette[ri] -= FADE_OUT_STEP;
@@ -846,6 +851,10 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
 
         /* Fade out the letters when escape is pressed */
         if (esc_pressed) {
+            #ifndef FADEOUT
+            break;
+            #endif
+
             for (ri = 3, gi = 4, bi = 5; ri < 3 * TEXT_PALETTE_SIZE; ri += 3, bi += 3, gi += 3) {
                 if (palette[ri] >= FADE_OUT_STEP) {
                     palette[ri] -= FADE_OUT_STEP;
