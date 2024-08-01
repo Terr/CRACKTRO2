@@ -61,6 +61,8 @@ typedef struct
 {
     int x;
     word letter_offset;
+    int r_from;
+    int r_to;
 } SPRITE;
 
 /*char text[] =   "                 NOSTALGIA PROUDLY PRESENTZ: SIMCITY V1.07 +1 BY MAXIS!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 TWINBEARD BRACKEEN AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";*/
@@ -371,8 +373,7 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
             /* Space */
             letters[ri].letter_offset = LETTER_SPACE;
         }
-        /*letters[ri].global_sin_index = ri * 2;*/
-        /*letters[ri].global_sin_index = ri;*/
+
         text_index++;
     }
 
@@ -463,6 +464,21 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
 
             letter.x -= LETTER_SCROLL_SPEED;
 
+            /* Update render start and end positions (not taking planes into the account) */
+            if (letter.x >= 0 && letter.x < SCREEN_WIDTH - LETTER_WIDTH) {
+                /* Letter is completely on screen */
+                letter.r_from = (letter.x - (letter.x & 3)) - letter.x;
+                letter.r_to = LETTER_WIDTH;
+            } else if (letter.x < 0) {
+                /* Left side of the letter is offscreen */
+                letter.r_from = -letter.x;
+                letter.r_to = LETTER_WIDTH;
+            } else {
+                /* Right side of the letter is offscreen */
+                letter.r_from = (letter.x - (letter.x & 3)) - letter.x;
+                letter.r_to = -(letter.x - SCREEN_WIDTH);
+            }
+
             if (letter.x <= -LETTER_WIDTH) {
                 /* letter is completely offscreen */
                 letter.x = LETTER_PADDING + (LETTER_WIDTH + LETTER_PADDING) * (NUM_LETTERS - 1);
@@ -518,30 +534,12 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
             for (ri = 0; ri < NUM_LETTERS; ++ri) {
                 letter = letters[ri];
 
-                /*start_x = ((letter.x / 4) * 4) - letter.x;*/
-
-                /*fprintf(log, "%d -> %d\n", letter.x, start_x);*/
-
-                if (letter.x >= 0 && letter.x < SCREEN_WIDTH - LETTER_WIDTH) {
-                    /* Letter is completely on screen */
-                    r_from = plane + (letter.x - (letter.x & 3)) - letter.x;
-                    r_to = LETTER_WIDTH;
-                } else if (letter.x < 0) {
-                    /* Left side of the letter is offscreen */
-                    r_from = plane + -letter.x;
-                    r_to = LETTER_WIDTH;
-                } else {
-                    /* Right side of the letter is offscreen */
-                    r_from = plane + (letter.x - (letter.x & 3)) - letter.x;
-                    r_to = -(letter.x - SCREEN_WIDTH);
-                }
-
+                r_from = letter.r_from + plane;
                 if (r_from < 0) {
                     r_from += 4;
                 }
 
-                for (i = r_from; i < r_to; i += 4) {
-
+                for (i = r_from; i < letter.r_to; i += 4) {
                     /* This holds the column to draw on the currently selected plane */
                     rx = letter.x + i;
 
