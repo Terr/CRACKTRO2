@@ -6,8 +6,9 @@ vga9.exe: tro2v1.obj radlib.obj precalc.obj vga.obj
 	tlink $(LIBPATH)\C0L @objects.rsp,vga9.exe,,$(LIBPATH)\EMU $(LIBPATH)\MATHL $(LIBPATH)\CL
 	#tlink /l /v $(LIBPATH)\C0L @objects.rsp,vga9.exe,,$(LIBPATH)\EMU $(LIBPATH)\MATHL $(LIBPATH)\CL
 
-a.exe: vga9.obj radlib.obj
-	tlink LIB\C0L radlib.obj vga9.obj,a.exe,,EMU MATHL CL
+civ.com:
+	tasm /m9 run.asm
+	tlink /t run.obj,civ.com
 
 radlib.obj: radlib.asm player.asm
 	tasm /t /m9 radlib.asm
