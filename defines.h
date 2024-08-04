@@ -46,9 +46,12 @@
 #define REFLECTION_DESTINATION_START 15040
 
 /* (Screen height - reflection rows - margin) * pixels per plane */
-/*#define UPPER_AREA_PLANE_PIXELS (SCREEN_HEIGHT - REFLECTION_ROWS - 20) * PLANE_WIDTH*/
+/*#define UPPER_AREA_PLANE_PIXELS (SCREEN_HEIGHT - REFLECTION_ROWS - 10) * PLANE_WIDTH*/
 #define UPPER_AREA_PLANE_PIXELS 15040
 /* (Screen height - (Screen height - reflection rows - margin)) * pixels per plane */
-#define REFLECTION_AREA_PLANE_PIXELS 4160
+#define REFLECTION_AREA_PLANE_PIXELS 3360
+/* The area below the reflection rows */
+/* 10 rows * 80 pixels */
+#define REFLECTION_AREA_BOTTOM_EDGE_PLANE_PIXELS 800
 
 #define FADE_OUT_STEP 3

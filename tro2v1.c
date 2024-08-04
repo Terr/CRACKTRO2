@@ -67,7 +67,7 @@ typedef struct
 } SPRITE;
 
 /*char text[] =   "                 NOSTALGIA PROUDLY PRESENTZ: SIMCITY V1.07 +1 BY MAXIS!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        ONLY NOSTALGIA CAN BRING YOU THE FINEST 12814-DAY RELEASEZ!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 TWINBEARD BRACKEEN AND EVERYONE ELSE WHO DESIREZ A GREET!        AND NOW FOR THE CRACKTRO CREDITZ:   MUSIX: MARVIN   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          MMXXIV  ";*/
-char text[] = "               OWO WHATS THIS# ANOTHER 10K-DAY RELEASE FROM NOSTALGIA#! YOU BET!        NOSTALGIA PROUDLY PRESENTZ: SID MEIERS CIVILIZATION V474.05 +4 BY MICROPROSE!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        HOPE U LIKE THE NEW INTRO FULL OF VGA MAGIC!       IT TOOK AGEZ TO WRITE BUT ONLY NOSTALGIA STANDZ THE TEST OF TIME!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 ABRASH BRACKEEN QBMIKEHAWK AND OF COURSE YOU!        CRACKTRO CREDITZ:   MUSIX: REALITY   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          HACK THE PLANET!!!            MMXXIV  ";
+char text[] = "               OWO WHATS THIS# ANOTHER 10K-DAY RELEASE FROM NOSTALGIA#! YOU BET!        NOSTALGIA PROUDLY PRESENTZ: SID MEIERS CIVILIZATION V474.05 +4 BY MICROPROSE!        CRACKED BY: LOADHIGH   TRAINED BY: LOADHIGH        HOPE U LIKE THIS NEW INTRO FULL OF VGA MAGIC!       IT TOOK AGEZ TO WRITE BUT ONLY NOSTALGIA STANDZ THE TEST OF TIME!        GREETZ TO ALL THE ELITEZ: REALITY TTE H0FFMAN ROOT42 ABRASH BRACKEEN QBMIKEHAWK AND OF COURSE YOU!        CRACKTRO CREDITZ:   MUSIX: REALITY   RAD LIB: REALITY   CODE/GRAFIX: LOADHIGH          HACK THE PLANET!!!            MMXXIV  ";
 
 static void interrupt (*org_kbd_handler)();
 static byte esc_pressed = 0;
@@ -461,7 +461,10 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
         /*outport(SC_INDEX, ALL_PLANES);*/
         memset(&VGA[non_visible_page], color_offset, UPPER_AREA_PLANE_PIXELS);
         /* Ensures that the reflection background is fully filled with the water color */
-        memset(&VGA[non_visible_page+UPPER_AREA_PLANE_PIXELS], alt_color_offset, REFLECTION_AREA_PLANE_PIXELS);
+        /* Most of the reflection is overwritten during the drawnig phase but
+         * everything below the reflection rows need to filled with the right
+         * color */
+        memset(&VGA[non_visible_page+UPPER_AREA_PLANE_PIXELS+REFLECTION_AREA_PLANE_PIXELS], alt_color_offset, REFLECTION_AREA_BOTTOM_EDGE_PLANE_PIXELS);
 
         /* First update the position of the letters */
         for (ri = 0; ri < NUM_LETTERS; ++ri) {
@@ -489,10 +492,10 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
                 letter.x = LETTER_PADDING + (LETTER_WIDTH + LETTER_PADDING) * (NUM_LETTERS - 1);
 
                 if (text[text_index] >= 65) {
-                    letter.letter_offset = (short)((text[text_index] - 65) << 4) + (short)((text[text_index] - 65) << 3);
+                    letter.letter_offset = ((text[text_index] - 65) << 4) + ((text[text_index] - 65) << 3);
                 } else if (text[text_index] >= 48) {
                     /* Digits + colon */
-                    letter.letter_offset = (short)((text[text_index] - 22) << 4) + ((text[text_index] - 22) << 3);
+                    letter.letter_offset = ((text[text_index] - 22) << 4) + ((text[text_index] - 22) << 3);
                 } else if (text[text_index] == 33) {
                     /* Exclamation mark */
                     letter.letter_offset = 888;
@@ -568,13 +571,14 @@ void mainloop(BITMAP bmp, int *sintable, int *distortion_table) {
                                 /* Deze zet de kleur 'vast' per Y coordinaat */
                                 /*VGA[screen_offset] = ((cy + j) & 255);*/
 
-                                VGA[screen_offset] = cy + j;
+                                VGA[screen_offset] = cy;
 
                                 /* Dit kleurt per plane */
                                 /* Rood geel groen blauw */
                                 /*VGA[screen_offset] = 1 + (plane*32) & 127;*/
                             }
 
+                            cy++;
                             screen_offset += PLANE_WIDTH;
                             bitmap_offset += BITMAP_WIDTH;
                         }
@@ -919,8 +923,8 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
         /* Clear page */
         /* All planes should already be selected because of the latch copy at the end of the loop */
         memset(&VGA[non_visible_page], color_offset, UPPER_AREA_PLANE_PIXELS);
-        /* Ensures that the reflection background is fully filled with the water color */
-        memset(&VGA[non_visible_page + UPPER_AREA_PLANE_PIXELS], alt_color_offset, REFLECTION_AREA_PLANE_PIXELS);
+        /* The reflection area doesn't need to be filled: it will be completely
+         * overwritten with data from the previos frame */
 
         /* Copy pixels from the other page using latches */
         /* Tell the VGA that all writes are to be done with bits from the latches, and none from the CPU */
@@ -979,7 +983,8 @@ void traintext_latch(int *distortion_table, word vga_storage_page, byte *palette
         /* Plus 1 so the distortion shift on the left side doesn't cause pixels to end up on the right side */
         copy_destination = non_visible_page + REFLECTION_DESTINATION_START + 1;
 
-        for (y = 0; y < REFLECTION_ROWS; ++y) {
+        /* `+ 10` to let the reflection reach the bottom edge of the screen */
+        for (y = 0; y < REFLECTION_ROWS + 10; ++y) {
             distortion = y + frame_counter;
 
             for (x = 0; x < PLANE_WIDTH; x += 2) {
