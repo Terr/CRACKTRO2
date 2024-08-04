@@ -76,7 +76,7 @@ static byte esc_pressed = 0;
 /* Don't forget the NUL terminator */
 #define HELPTEXT_LINE_WIDTH 20
 char helptext[HELPTEXT_NUM_LINES][HELPTEXT_LINE_WIDTH] = {
-    "  CIV +4 TRAINER   ",
+    "   CIV +4 TRAINER  ",
     "-------------------",
     "WHILE IN-GAME PRESS",
     "                   ",
