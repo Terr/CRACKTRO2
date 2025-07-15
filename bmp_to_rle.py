@@ -1,3 +1,7 @@
+"""
+Quick 'n dirty script to convert a BMP file to a Run-Length Encoded (RLE) C header (`.h`) file.
+"""
+
 import struct
 
 
@@ -67,9 +71,6 @@ def unrle(compressed: list[int]):
 
     return uncompressed
 
-
-# uncompressed = [0, 0, 42, 69, 69, 69, 69, 0, 18]
-# print(rle(uncompressed))
 
 bmp = load_bmp("letters.bmp")
 print("Uncompressed length:", len(bmp))

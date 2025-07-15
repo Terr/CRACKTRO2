@@ -1,3 +1,6 @@
+#ifndef DEFINES_H
+#define DEFINES_H
+
 #define NUM_COLORS 256
 #define TEXT_PALETTE_SIZE 64
 #define TEXT_PALETTE_ANGLE 5.71428
@@ -15,10 +18,8 @@
 #define SINTABLE_SIZE 256
 #define ZTABLE_FIXED_FRAC 6
 
+/* Maximum number of letters on screen at the same time in the wavey text scene */
 #define NUM_LETTERS 13
-#define NUM_STARS 69
-/*#define NUM_STARS 1*/
-#define STAR_SPEED 1
 #define BITMAP_WIDTH 1080
 #define BITMAP_HEIGHT 24
 
@@ -55,3 +56,5 @@
 #define REFLECTION_AREA_BOTTOM_EDGE_PLANE_PIXELS 800
 
 #define FADE_OUT_STEP 3
+
+#endif
